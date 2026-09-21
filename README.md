@@ -1,8 +1,8 @@
 # Multi-Vendor E-Commerce Platform (Turborepo Monorepo)
 
 A high-performance, full-featured multi-tenant marketplace platform migrated from PHP/Laravel 10 to a modern TypeScript stack:
-- **Frontend (`apps/web`)**: Next.js 14/15 (App Router), Tailwind CSS, shadcn/ui, TanStack Table v8, Lucide Icons, Zustand.
-- **Backend (`apps/api`)**: Node.js, Express, TypeScript, JWT Auth & RBAC, Zod validation, WebSockets, Payment Gateway integrations (Stripe, PayPal, Razorpay, COD).
+- **Frontend (`apps/frontend`)**: Next.js 14/15 (App Router), Tailwind CSS, shadcn/ui, TanStack Table v8, Lucide Icons, Zustand.
+- **Backend (`apps/backend`)**: Node.js, Express, TypeScript, JWT Auth & RBAC, Zod validation, WebSockets, Payment Gateway integrations (Stripe, PayPal, Razorpay, COD).
 - **Database (`packages/database`)**: PostgreSQL with Prisma ORM, native `JSONB` for immutable checkout snapshots, 54 domain models, seeding scripts.
 - **Shared Types (`packages/shared-types`)**: Shared TypeScript interfaces, DTOs, and Zod schemas.
 
@@ -13,7 +13,7 @@ A high-performance, full-featured multi-tenant marketplace platform migrated fro
 ```text
 ecommerce-backend/
 ├── apps/
-│   ├── api/                          # Node.js + Express API Backend
+│   ├── backend/                      # Node.js + Express API Backend
 │   │   ├── src/
 │   │   │   ├── controllers/          # Admin, Vendor, Customer, Storefront, Order controllers
 │   │   │   ├── middlewares/          # Auth JWT & Role-based Access Control (RoleMiddleware)
@@ -23,7 +23,7 @@ ecommerce-backend/
 │   │   │   └── server.ts             # Express server entry point
 │   │   └── package.json
 │   │
-│   └── web/                          # Next.js App Router Frontend
+│   └── frontend/                     # Next.js App Router Frontend
 │       ├── src/
 │       │   ├── app/                  # (storefront), (customer), (vendor), (admin) route groups
 │       │   ├── components/
