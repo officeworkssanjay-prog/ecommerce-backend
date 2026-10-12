@@ -2,57 +2,36 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import {
   Sparkles,
-  Zap,
-  ShoppingBag,
   ArrowRight,
   Star,
   Flame,
-  ChevronRight,
-  TrendingUp,
-  Tag,
+  Heart,
+  ShoppingBag,
   ShieldCheck,
+  Truck,
+  RotateCcw,
+  Lock,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export default function HomePage() {
   const { addItem } = useCart();
-  const [homeData, setHomeData] = useState<{
-    sliders?: any[];
-    categories?: any[];
-    flashSale?: any;
-    brands?: any[];
-    newArrivals?: any[];
-    featuredProducts?: any[];
-  } | null>(null);
 
-  const [loading, setLoading] = useState(true);
-  const [activeSliderIndex, setActiveSliderIndex] = useState(0);
+  // Active Hero Slide Index
+  const [heroIndex, setHeroIndex] = useState(0);
+
+  // Flash Sale Countdown Timer
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number }>({
-    hours: 24,
-    minutes: 0,
-    seconds: 0,
+    hours: 14,
+    minutes: 38,
+    seconds: 42,
   });
 
-  useEffect(() => {
-    async function loadHome() {
-      try {
-        const res = await api.get("/storefront/home");
-        if (res.success && res.data) {
-          setHomeData(res.data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch home data", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadHome();
-  }, []);
-
-  // Flash Sale countdown ticker
+  // Ticker countdown
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -65,378 +44,1010 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Auto-advance sliders
+  // 5 Hero Slides from Figma "desktop-hero-states"
+  const heroSlides = [
+    {
+      id: "slide-1",
+      eyebrow: "New Collection 2026",
+      title: "Elegant Jewellery,\nAffordable Price",
+      description:
+        "From weddings to daily wear, trending designs for every occasion.",
+      image: "/images/figma/hero.png",
+      ctaPrimary: "Shop Now",
+      ctaPrimaryHref: "/products",
+      ctaSecondary: "View Collection",
+      ctaSecondaryHref: "/products",
+      counter: "01 / 05",
+    },
+    {
+      id: "slide-2",
+      eyebrow: "The Bridal Edit",
+      title: "Every Ritual,\nBeautifully Adorned",
+      description:
+        "From weddings to daily wear, trending designs for every occasion.",
+      image: "/images/figma/bridal-banner.png",
+      ctaPrimary: "Explore Bridal",
+      ctaPrimaryHref: "/products?category=bridal",
+      ctaSecondary: "Book a Stylist",
+      ctaSecondaryHref: "/contact",
+      counter: "02 / 05",
+    },
+    {
+      id: "slide-3",
+      eyebrow: "Statement Necklaces",
+      title: "Elegant Jewellery,\nAffordable Price",
+      description:
+        "From weddings to daily wear, trending designs for every occasion.",
+      image: "/images/figma/curated-large.png",
+      ctaPrimary: "Shop Now",
+      ctaPrimaryHref: "/products?category=necklace",
+      ctaSecondary: "View Collection",
+      ctaSecondaryHref: "/products?category=necklace",
+      counter: "03 / 05",
+    },
+    {
+      id: "slide-4",
+      eyebrow: "Rings & Stackables",
+      title: "Elegant Jewellery,\nAffordable Price",
+      description:
+        "From weddings to daily wear, trending designs for every occasion.",
+      image: "/images/figma/brand-story.png",
+      ctaPrimary: "Shop Now",
+      ctaPrimaryHref: "/products?category=rings",
+      ctaSecondary: "View Collection",
+      ctaSecondaryHref: "/products?category=rings",
+      counter: "04 / 05",
+    },
+    {
+      id: "slide-5",
+      eyebrow: "Festive Sale",
+      title: "Elegant Jewellery,\nAffordable Price",
+      description:
+        "From weddings to daily wear, trending designs for every occasion.",
+      image: "/images/figma/hero-slide-5.png",
+      ctaPrimary: "Shop Now",
+      ctaPrimaryHref: "/flash-sale",
+      ctaSecondary: "View Collection",
+      ctaSecondaryHref: "/flash-sale",
+      counter: "05 / 05",
+    },
+  ];
+
+  // Auto advance hero
   useEffect(() => {
-    if (!homeData?.sliders || homeData.sliders.length <= 1) return;
     const interval = setInterval(() => {
-      setActiveSliderIndex((prev) => (prev + 1) % homeData.sliders!.length);
+      setHeroIndex((prev) => (prev + 1) % heroSlides.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, [homeData?.sliders]);
+  }, [heroSlides.length]);
 
-  // Fallback defaults for instant wow aesthetic
-  const defaultSliders = [
+  // Categories (8 circular cards with original Figma assets)
+  const categories = [
     {
-      title: "Royal Heritage Kundan & Polki Sets",
-      type: "Bridal Couture Collection",
-      startingPrice: 1250,
-      btnUrl: "/products",
-      banner:
-        "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=1600&q=80",
+      name: "Necklaces",
+      href: "/products?category=necklace",
+      image: "/images/figma/cat-necklaces.png",
     },
     {
-      title: "Certified Solitaire Diamond Rings",
-      type: "Eternal Diamonds",
-      startingPrice: 890,
-      btnUrl: "/products",
-      banner:
-        "https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1600&q=80",
+      name: "Earrings",
+      href: "/products?category=earrings",
+      image: "/images/figma/cat-earrings.png",
     },
     {
-      title: "22K Solid Gold Handcrafted Bangles",
-      type: "Temple & Antique Gold",
-      startingPrice: 1450,
-      btnUrl: "/products",
-      banner:
-        "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=1600&q=80",
+      name: "Bangles",
+      href: "/products?category=bangles",
+      image: "/images/figma/cat-bangles.png",
+    },
+    {
+      name: "Rings",
+      href: "/products?category=rings",
+      image: "/images/figma/cat-rings.png",
+    },
+    {
+      name: "Bridal Sets",
+      href: "/products?category=bridal",
+      image: "/images/figma/cat-bridal.png",
+    },
+    {
+      name: "Chains",
+      href: "/products?category=necklace&sub=layered-chains",
+      image: "/images/figma/cat-chains.png",
+    },
+    {
+      name: "Anklets",
+      href: "/products?category=anklets",
+      image: "/images/figma/cat-anklets.png",
+    },
+    {
+      name: "Nath & Tikka",
+      href: "/products?category=bridal&sub=maang-tikka",
+      image: "/images/figma/cat-nath-tikka.png",
     },
   ];
 
-  const sliders = homeData?.sliders?.length ? homeData.sliders : defaultSliders;
-  const currentSlide = sliders[activeSliderIndex] || sliders[0];
-
-  const sampleCategories = [
-    { name: "Bridal Sets", icon: "👑", count: 74, slug: "bridal-sets" },
-    { name: "Diamond Rings", icon: "💍", count: 112, slug: "diamond-rings" },
-    { name: "Gold Necklaces", icon: "✨", count: 85, slug: "gold-necklaces" },
-    { name: "Polki & Jhumkas", icon: "💎", count: 68, slug: "polki-jhumkas" },
-    { name: "Bangles & Kadas", icon: "💫", count: 54, slug: "bangles-kadas" },
-    { name: "Gemstone Pendants", icon: "🔮", count: 46, slug: "gemstone-pendants" },
-  ];
-
-  const categories = homeData?.categories?.length ? homeData.categories : sampleCategories;
-
-  const sampleProducts = [
+  // Most Loved / Bestsellers (Original Figma assets)
+  const bestsellers = [
     {
-      id: "jewel-1",
-      name: "18K Gold Royal Kundan Choker with Emerald Droplets",
-      slug: "royal-kundan-choker-emerald-droplets",
+      id: "prod-1",
+      name: "18K Gold Royal Kundan Pendant Choker",
+      slug: "royal-kundan-pendant-choker",
       price: 2450,
       offerPrice: 2190,
-      thumbImage:
-        "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=600&q=80",
+      image: "/images/figma/bestseller-1.png",
       rating: 5,
-      reviewsCount: 42,
-      category: { name: "Bridal Sets" },
+      reviewsCount: 38,
+      category: "Necklaces",
+      badge: "BESTSELLER",
     },
     {
-      id: "jewel-2",
-      name: "1.5 Carat VVS1 Certified Solitaire Diamond Ring",
+      id: "prod-2",
+      name: "Heritage Polki Chandbali Jhumkas",
+      slug: "heritage-polki-chandbali-jhumkas",
+      price: 1550,
+      offerPrice: 1350,
+      image: "/images/figma/bestseller-2.png",
+      rating: 4.9,
+      reviewsCount: 42,
+      category: "Earrings",
+      badge: "POPULAR",
+    },
+    {
+      id: "prod-3",
+      name: "22K Antique Nakshi Temple Gold Bangles (Pair)",
+      slug: "antique-nakshi-temple-gold-bangles",
+      price: 2190,
+      offerPrice: 1950,
+      image: "/images/figma/bestseller-3.png",
+      rating: 5,
+      reviewsCount: 29,
+      category: "Bangles",
+      badge: "HOT",
+    },
+    {
+      id: "prod-4",
+      name: "1.5 Ct VVS1 Certified Solitaire Platinum Band Ring",
       slug: "solitaire-diamond-ring-platinum-band",
       price: 3800,
       offerPrice: 3450,
-      thumbImage:
-        "https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=600&q=80",
-      rating: 4.9,
-      reviewsCount: 38,
-      category: { name: "Diamond Rings" },
-    },
-    {
-      id: "jewel-3",
-      name: "22K Antique Nakshi Temple Gold Bangles (Pair)",
-      slug: "antique-nakshi-temple-gold-bangles",
-      price: 1950,
-      offerPrice: null,
-      thumbImage:
-        "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=600&q=80",
+      image: "/images/figma/bestseller-4.png",
       rating: 5,
-      reviewsCount: 29,
-      category: { name: "Bangles & Kadas" },
-    },
-    {
-      id: "jewel-4",
-      name: "Heritage Uncut Diamond Polki Chandbali Jhumkas",
-      slug: "heritage-uncut-diamond-polki-chandbali-jhumkas",
-      price: 1350,
-      offerPrice: 1190,
-      thumbImage:
-        "https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=600&q=80",
-      rating: 5,
-      reviewsCount: 56,
-      category: { name: "Polki & Jhumkas" },
+      reviewsCount: 51,
+      category: "Rings",
+      badge: "EXCLUSIVE",
     },
   ];
 
-  const featured = homeData?.featuredProducts?.length
-    ? homeData.featuredProducts
-    : sampleProducts;
-  const newArrivals = homeData?.newArrivals?.length ? homeData.newArrivals : sampleProducts;
+  // Testimonials (Original Figma portraits)
+  const testimonials = [
+    {
+      name: "Pooja Sharma",
+      location: "Mumbai",
+      comment:
+        "The Kundan bridal choker exceeded all my expectations! The craftsmanship, heavy weight, and polish looked identical to pure royal heritage jewellery. Received endless compliments on my wedding day.",
+      avatar: "/images/figma/testimonial-1.png",
+    },
+    {
+      name: "Ananya Verma",
+      location: "New Delhi",
+      comment:
+        "Ordered the Polki chandbalis and Nakshi bangles. The delivery was fast, safely insured, and the luxury packaging felt like unboxing a treasure. Authentic Karigar work at very honest pricing!",
+      avatar: "/images/figma/testimonial-2.png",
+    },
+    {
+      name: "Sneha Patel",
+      location: "Ahmedabad",
+      comment:
+        "I was hesitant about ordering fine jewellery online, but Sawariya Arts won my trust completely. BIS hallmark certificate was included, and the solitaire ring brilliance is mesmerizing.",
+      avatar: "/images/figma/testimonial-3.png",
+    },
+  ];
+
+  // Instagram Gallery (Original Figma assets)
+  const instaPosts = [
+    {
+      image: "/images/figma/insta-1.png",
+      handle: "@sawariyaarts",
+    },
+    {
+      image: "/images/figma/insta-2.png",
+      handle: "@sawariyaarts",
+    },
+    {
+      image: "/images/figma/insta-3.png",
+      handle: "@sawariyaarts",
+    },
+    {
+      image: "/images/figma/insta-4.png",
+      handle: "@sawariyaarts",
+    },
+  ];
+
+  const currentSlide = heroSlides[heroIndex];
 
   return (
-    <div className="flex flex-col gap-16 pb-20">
-      {/* 1. Hero Carousel */}
-      <section className="relative overflow-hidden bg-zinc-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-7 space-y-6 z-10">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold tracking-wide">
-                <Sparkles className="w-3.5 h-3.5" />
-                {currentSlide.type || "Artisan Masterpiece"}
+    <div className="bg-[#faf8f5] text-[#221517] font-sans selection:bg-[#caa15e]/30 selection:text-[#221517]">
+      {/* ==============================================================
+          1. HERO CAROUSEL BANNER SECTION (FIGMA "desktop-hero-states")
+      ============================================================== */}
+      <section className="relative overflow-hidden bg-[#180e10] text-white min-h-[600px] lg:min-h-[700px] flex items-center">
+        {/* Background Image with Slow Zoom Effect */}
+        <div className="absolute inset-0 overflow-hidden">
+          {heroSlides.map((slide, idx) => (
+            <div
+              key={slide.id}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                heroIndex === idx ? "opacity-100 z-0" : "opacity-0 -z-10 pointer-events-none"
+              }`}
+            >
+              <img
+                src={slide.image}
+                alt={slide.title}
+                className={`w-full h-full object-cover object-[center_20%] transition-transform duration-[7000ms] ease-out ${
+                  heroIndex === idx ? "scale-105" : "scale-100"
+                }`}
+              />
+              {/* Figma "Hero contrast scrim" overlay */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#180e10]/95 via-[#180e10]/65 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#180e10] via-transparent to-transparent opacity-85" />
+            </div>
+          ))}
+        </div>
+
+        {/* Content Container */}
+        <div className="relative max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 w-full z-10">
+          <div key={currentSlide.id} className="max-w-2xl space-y-6 animate-in fade-in duration-500">
+            {/* Golden Tag Badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#caa15e]/20 border border-[#caa15e]/40 text-[#f5ebd7] text-xs font-semibold tracking-widest uppercase shadow-sm">
+              <Sparkles className="w-3.5 h-3.5 text-[#caa15e]" />
+              {currentSlide.eyebrow}
+            </div>
+
+            {/* Headline */}
+            <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.12] drop-shadow-md whitespace-pre-line">
+              {currentSlide.title}
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-zinc-300 text-sm sm:text-base font-normal max-w-xl leading-relaxed">
+              {currentSlide.description}
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-wrap items-center gap-4 pt-3">
+              <Link
+                href={currentSlide.ctaPrimaryHref}
+                className="px-8 py-3.5 rounded-full bg-[#caa15e] hover:bg-[#b88c49] text-zinc-950 text-sm font-bold shadow-lg shadow-amber-950/40 hover:scale-105 transition-all"
+              >
+                {currentSlide.ctaPrimary}
+              </Link>
+
+              <Link
+                href={currentSlide.ctaSecondaryHref}
+                className="px-7 py-3.5 rounded-full border border-white/40 hover:border-white text-white text-sm font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+              >
+                {currentSlide.ctaSecondary}
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Slider Navigation & Counter Controls (Exact Figma desktop-hero-states) */}
+        <div className="absolute bottom-8 left-4 sm:left-8 right-4 sm:right-8 z-20 flex items-center justify-between pointer-events-none">
+          {/* Left / Right Arrow Controls */}
+          <div className="flex items-center gap-2.5 pointer-events-auto">
+            <button
+              onClick={() =>
+                setHeroIndex((prev) => (prev === 0 ? heroSlides.length - 1 : prev - 1))
+              }
+              className="w-10 h-10 rounded-full bg-[#221517]/80 hover:bg-[#caa15e] text-white hover:text-zinc-950 border border-white/20 hover:border-[#caa15e] flex items-center justify-center transition-all shadow-md backdrop-blur-xs"
+              title="Previous Slide"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setHeroIndex((prev) => (prev + 1) % heroSlides.length)}
+              className="w-10 h-10 rounded-full bg-[#221517]/80 hover:bg-[#caa15e] text-white hover:text-zinc-950 border border-white/20 hover:border-[#caa15e] flex items-center justify-center transition-all shadow-md backdrop-blur-xs"
+              title="Next Slide"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* 5-Slide Progress Bars & Exact Counter (01 / 05) */}
+          <div className="flex items-center gap-4 pointer-events-auto bg-[#221517]/80 px-4 py-2 rounded-full border border-white/15 backdrop-blur-xs">
+            {/* 5 Progress Bars */}
+            <div className="flex items-center gap-1.5">
+              {heroSlides.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setHeroIndex(i)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    heroIndex === i
+                      ? "w-8 bg-[#caa15e]"
+                      : "w-3 bg-white/30 hover:bg-white/60"
+                  }`}
+                  title={`Go to slide ${i + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Slide Counter Text */}
+            <span className="text-xs font-mono font-bold tracking-widest text-[#f5ebd7]">
+              {currentSlide.counter}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* ==============================================================
+          2. TRUST / VALUE PROPOSITIONS STRIP
+      ============================================================== */}
+      <section className="bg-[#faf5ee] border-b border-[#ebdcc9] py-8">
+        <div className="max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-[#f0e3ce] text-[#8b6528] flex items-center justify-center flex-shrink-0">
+                <ShieldCheck className="w-5 h-5" />
               </div>
-
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.15]">
-                {currentSlide.title}
-              </h1>
-
-              <p className="text-zinc-400 text-base sm:text-lg max-w-xl font-normal leading-relaxed">
-                Connect directly with heritage craftspersons and discover museum-grade sculptures,
-                hand-carved relics, and divine idols designed to sanctify your spaces.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-4 pt-2">
-                <Link
-                  href={currentSlide.btnUrl || "/products"}
-                  className="px-7 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/25 flex items-center gap-2 transition-all transform hover:-translate-y-0.5"
-                >
-                  Explore Collection
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-
-                <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-zinc-900/80 border border-zinc-800 text-zinc-300">
-                  <Tag className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs">
-                    Starting from{" "}
-                    <strong className="text-white text-sm">
-                      ${currentSlide.startingPrice || 89}
-                    </strong>
-                  </span>
-                </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-[#221517]">100% Certified</h4>
+                <p className="text-[11px] text-zinc-600">BIS Hallmarked Gold</p>
               </div>
             </div>
 
-            {/* Visual Media Card */}
-            <div className="lg:col-span-5 relative">
-              <div className="relative rounded-3xl overflow-hidden aspect-[4/3] sm:aspect-square shadow-2xl border border-zinc-800/80 group">
-                <img
-                  src={currentSlide.banner}
-                  alt={currentSlide.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent opacity-80" />
-                <div className="absolute bottom-6 left-6 right-6 p-4 rounded-2xl bg-zinc-900/80 backdrop-blur-md border border-zinc-700/50 flex items-center justify-between">
-                  <div>
-                    <span className="text-[11px] text-zinc-400 uppercase tracking-wider font-medium">
-                      Authenticity Assured
-                    </span>
-                    <h4 className="text-sm font-semibold text-white">Direct Artisan Certification</h4>
-                  </div>
-                  <ShieldCheck className="w-6 h-6 text-emerald-400" />
-                </div>
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-[#f0e3ce] text-[#8b6528] flex items-center justify-center flex-shrink-0">
+                <Truck className="w-5 h-5" />
               </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-[#221517]">Free Express Delivery</h4>
+                <p className="text-[11px] text-zinc-600">On all orders above ₹999</p>
+              </div>
+            </div>
 
-              {/* Slider Dots */}
-              {sliders.length > 1 && (
-                <div className="flex justify-center gap-2 mt-4">
-                  {sliders.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setActiveSliderIndex(i)}
-                      className={`h-2 rounded-full transition-all ${
-                        activeSliderIndex === i ? "w-8 bg-indigo-500" : "w-2 bg-zinc-700 hover:bg-zinc-500"
-                      }`}
-                    />
-                  ))}
-                </div>
-              )}
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-[#f0e3ce] text-[#8b6528] flex items-center justify-center flex-shrink-0">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-[#221517]">15-Day Easy Returns</h4>
+                <p className="text-[11px] text-zinc-600">Hassle-free exchange</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-[#f0e3ce] text-[#8b6528] flex items-center justify-center flex-shrink-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-[#221517]">Secure Checkout</h4>
+                <p className="text-[11px] text-zinc-600">100% Encrypted & Safe</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2. Category Showcase */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="flex items-end justify-between mb-8">
+      {/* ==============================================================
+          3. "SHOP BY CATEGORY" (8 CIRCULAR CARDS - FIGMA ASSETS)
+      ============================================================== */}
+      <section className="max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+        <div className="flex items-end justify-between mb-10">
           <div>
-            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1">
-              <TrendingUp className="w-4 h-4" /> Curated Disciplines
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              Explore by Craft & Category
+            <span className="text-[11px] font-bold text-[#caa15e] tracking-widest uppercase">
+              DISCOVER
+            </span>
+            <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#221517] tracking-tight mt-1">
+              Shop by Category
             </h2>
           </div>
           <Link
             href="/products"
-            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+            className="text-xs sm:text-sm font-semibold text-[#8b6528] hover:text-[#caa15e] flex items-center gap-1 group"
           >
-            All Categories <ChevronRight className="w-3.5 h-3.5" />
+            View All
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {categories.slice(0, 6).map((cat: any, idx: number) => (
+        {/* 8 Circular items */}
+        <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-4 sm:gap-6">
+          {categories.map((cat) => (
             <Link
-              key={cat.slug || idx}
-              href={`/products?category=${cat.slug || cat.name}`}
-              className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 hover:shadow-lg transition-all group flex flex-col items-center text-center"
+              key={cat.name}
+              href={cat.href}
+              className="flex flex-col items-center text-center group"
             >
-              <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-2xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                {cat.icon || "🎨"}
+              {/* Circular Avatar Container with Gold Border */}
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 rounded-full overflow-hidden p-1 border-2 border-transparent group-hover:border-[#caa15e] transition-all duration-300 shadow-sm bg-white">
+                <div className="w-full h-full rounded-full overflow-hidden">
+                  <img
+                    src={cat.image}
+                    alt={cat.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                </div>
               </div>
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 transition-colors">
+              <h3 className="mt-3 text-xs sm:text-sm font-medium text-[#221517] group-hover:text-[#8b6528] transition-colors">
                 {cat.name}
               </h3>
-              <span className="text-[11px] text-zinc-400 mt-0.5">
-                {cat.subCategories ? `${cat.subCategories.length} sub-tiers` : "Explore craft"}
-              </span>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* 3. Flash Sale Urgency Ticker */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="rounded-3xl bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-700 p-8 sm:p-10 text-white shadow-xl relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-2 text-center md:text-left">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold uppercase tracking-wider">
-                <Flame className="w-3.5 h-3.5 fill-white" /> Limited Time Flash Sale
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Up to 40% Off Heritage Artifacts
-              </h3>
-              <p className="text-white/80 text-sm max-w-md">
-                Strictly limited quantities crafted by certified heritage guilds. Prices revert once timer expires.
-              </p>
+      {/* ==============================================================
+          4. "CURATED FOR YOU" (ASYMMETRIC SHOWCASE GRID - FIGMA ASSETS)
+      ============================================================== */}
+      <section className="bg-[#f5ede1] py-16 sm:py-20 border-y border-[#ebdcc9]">
+        <div className="max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-10">
+            <div>
+              <span className="text-[11px] font-bold text-[#caa15e] tracking-widest uppercase">
+                SELECTION
+              </span>
+              <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#221517] tracking-tight mt-1">
+                Curated For You
+              </h2>
+            </div>
+            <Link
+              href="/products"
+              className="text-xs sm:text-sm font-semibold text-[#8b6528] hover:text-[#caa15e] flex items-center gap-1 group"
+            >
+              Explore All
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+          {/* Asymmetric Grid: 1 Tall Left, 2 Stacked Right */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-stretch">
+            {/* Left Large Card */}
+            <div className="lg:col-span-6 flex flex-col">
+              <Link
+                href="/products?category=necklace"
+                className="group relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-[16/11] lg:h-full min-h-[380px] shadow-lg border border-amber-900/10 block"
+              >
+                <img
+                  src="/images/figma/curated-large.png"
+                  alt="Meenakari & Kundan Sets"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+
+                <div className="absolute top-5 left-5">
+                  <span className="px-3.5 py-1.5 rounded-full bg-[#caa15e] text-zinc-950 font-bold text-xs shadow-md">
+                    FEATURED
+                  </span>
+                </div>
+
+                <div className="absolute bottom-6 left-6 right-6 text-white space-y-1.5">
+                  <h3 className="font-serif text-2xl sm:text-3xl font-bold">
+                    Meenakari & Kundan Sets
+                  </h3>
+                  <p className="text-xs sm:text-sm text-zinc-300 max-w-md">
+                    Heirloom heritage pieces crafted with precision and uncut gemstones.
+                  </p>
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#f5ebd7] group-hover:translate-x-1 transition-transform pt-1">
+                    Explore Collection <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              </Link>
             </div>
 
-            {/* Countdown Clocks */}
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-black/30 backdrop-blur-md border border-white/10">
-                <span className="text-xl font-bold font-mono">
-                  {String(timeLeft.hours).padStart(2, "0")}
-                </span>
-                <span className="text-[10px] uppercase text-white/70">Hours</span>
-              </div>
-              <span className="text-xl font-bold">:</span>
-              <div className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-black/30 backdrop-blur-md border border-white/10">
-                <span className="text-xl font-bold font-mono">
-                  {String(timeLeft.minutes).padStart(2, "0")}
-                </span>
-                <span className="text-[10px] uppercase text-white/70">Mins</span>
-              </div>
-              <span className="text-xl font-bold">:</span>
-              <div className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-black/30 backdrop-blur-md border border-white/10">
-                <span className="text-xl font-bold font-mono">
-                  {String(timeLeft.seconds).padStart(2, "0")}
-                </span>
-                <span className="text-[10px] uppercase text-white/70">Secs</span>
-              </div>
-
+            {/* Right 2 Stacked Cards */}
+            <div className="lg:col-span-6 flex flex-col gap-6 sm:gap-8 justify-between">
+              {/* Top Right Card */}
               <Link
-                href="/flash-sale"
-                className="ml-4 px-6 py-3 rounded-2xl bg-white text-zinc-950 text-xs font-bold hover:bg-zinc-100 shadow-md transition-all whitespace-nowrap"
+                href="/products?category=earrings"
+                className="group relative rounded-2xl overflow-hidden h-[240px] sm:h-[260px] shadow-lg border border-amber-900/10 block"
               >
-                View Flash Sale
+                <img
+                  src="/images/figma/curated-top-right.png"
+                  alt="Polki & Temple Earrings"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+
+                <div className="absolute top-4 left-4">
+                  <span className="px-3 py-1 rounded-full bg-[#caa15e] text-zinc-950 font-bold text-[11px] shadow-sm">
+                    NEW ARRIVALS
+                  </span>
+                </div>
+
+                <div className="absolute bottom-5 left-5 right-5 text-white">
+                  <h3 className="font-serif text-xl sm:text-2xl font-bold">
+                    Polki & Temple Earrings
+                  </h3>
+                  <p className="text-xs text-zinc-300">
+                    Intricately carved artisan drops and heritage chandbalis.
+                  </p>
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#f5ebd7] group-hover:translate-x-1 transition-transform pt-1">
+                    Shop Now <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              </Link>
+
+              {/* Bottom Right Card */}
+              <Link
+                href="/products?category=bangles"
+                className="group relative rounded-2xl overflow-hidden h-[240px] sm:h-[260px] shadow-lg border border-amber-900/10 block"
+              >
+                <img
+                  src="/images/figma/curated-bottom-right.png"
+                  alt="Handcrafted Bangles & Kadas"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+
+                <div className="absolute top-4 left-4">
+                  <span className="px-3 py-1 rounded-full bg-[#caa15e] text-zinc-950 font-bold text-[11px] shadow-sm">
+                    BESTSELLER
+                  </span>
+                </div>
+
+                <div className="absolute bottom-5 left-5 right-5 text-white">
+                  <h3 className="font-serif text-xl sm:text-2xl font-bold">
+                    Handcrafted Bangles & Kadas
+                  </h3>
+                  <p className="text-xs text-zinc-300">
+                    Traditional 22K nakshi work and solid antique filigree.
+                  </p>
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#f5ebd7] group-hover:translate-x-1 transition-transform pt-1">
+                    Shop Now <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 4. Featured Product Catalog Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="flex items-end justify-between mb-8">
+      {/* ==============================================================
+          5. "FIND YOUR LOOK" (OCCASIONS SECTION - FIGMA ASSETS)
+      ============================================================== */}
+      <section className="max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+        <div className="flex items-end justify-between mb-10">
           <div>
-            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4" /> Top Selections
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-              Featured Artworks
+            <span className="text-[11px] font-bold text-[#caa15e] tracking-widest uppercase">
+              SHOP BY OCCASION
+            </span>
+            <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#221517] tracking-tight mt-1">
+              Find Your Look
             </h2>
           </div>
           <Link
             href="/products"
-            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+            className="text-xs sm:text-sm font-semibold text-[#8b6528] hover:text-[#caa15e] flex items-center gap-1 group"
           >
-            View All ({featured.length}) <ChevronRight className="w-3.5 h-3.5" />
+            View All Looks
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featured.map((prod: any) => (
-            <div
-              key={prod.id}
-              className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 overflow-hidden hover:shadow-xl transition-all group flex flex-col"
-            >
-              {/* Image & Badges */}
-              <div className="relative aspect-square overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                <img
-                  src={prod.thumbImage || "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600"}
-                  alt={prod.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                {prod.offerPrice && (
-                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-rose-600 text-white text-[11px] font-bold shadow-xs">
-                    Save ${Number(prod.price - prod.offerPrice).toFixed(0)}
-                  </span>
-                )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+          {/* 1. Everyday Minimalist */}
+          <Link
+            href="/products?look=everyday"
+            className="group rounded-2xl overflow-hidden bg-white shadow-md border border-zinc-200/80 hover:shadow-xl transition-all duration-300 flex flex-col"
+          >
+            <div className="relative aspect-[4/3] overflow-hidden">
+              <img
+                src="/images/figma/occasion-everyday.png"
+                alt="Everyday Minimalist"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute top-4 left-4">
+                <span className="px-3 py-1 rounded-full bg-white/90 backdrop-blur-xs text-[#221517] font-bold text-[11px] shadow-xs">
+                  DAILY WEAR
+                </span>
               </div>
+            </div>
+            <div className="p-6 flex-1 flex flex-col justify-between space-y-2">
+              <div>
+                <h3 className="font-serif text-xl font-bold text-[#221517] group-hover:text-[#8b6528] transition-colors">
+                  Everyday Minimalist
+                </h3>
+                <p className="text-xs sm:text-sm text-zinc-600 mt-1">
+                  Delicate 18K & silver accents designed for effortless elegance all day long.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#8b6528] group-hover:translate-x-1 transition-transform pt-2">
+                Explore Minimalist <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </div>
+          </Link>
 
-              {/* Body */}
-              <div className="p-5 flex-1 flex flex-col justify-between">
-                <div>
-                  <span className="text-[11px] text-zinc-400 uppercase tracking-wider font-medium">
-                    {prod.category?.name || "Handcrafted"}
+          {/* 2. Festive Elegance */}
+          <Link
+            href="/products?look=festive"
+            className="group rounded-2xl overflow-hidden bg-white shadow-md border border-zinc-200/80 hover:shadow-xl transition-all duration-300 flex flex-col"
+          >
+            <div className="relative aspect-[4/3] overflow-hidden">
+              <img
+                src="/images/figma/occasion-festive.png"
+                alt="Festive Elegance"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute top-4 left-4">
+                <span className="px-3 py-1 rounded-full bg-[#caa15e] text-zinc-950 font-bold text-[11px] shadow-xs">
+                  FESTIVE SPECIAL
+                </span>
+              </div>
+            </div>
+            <div className="p-6 flex-1 flex flex-col justify-between space-y-2">
+              <div>
+                <h3 className="font-serif text-xl font-bold text-[#221517] group-hover:text-[#8b6528] transition-colors">
+                  Festive Elegance
+                </h3>
+                <p className="text-xs sm:text-sm text-zinc-600 mt-1">
+                  Radiant jewels for pujas, family celebrations, and milestone gatherings.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#8b6528] group-hover:translate-x-1 transition-transform pt-2">
+                Explore Festive <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </div>
+          </Link>
+
+          {/* 3. Royal Bridal */}
+          <Link
+            href="/products?category=bridal"
+            className="group rounded-2xl overflow-hidden bg-white shadow-md border border-zinc-200/80 hover:shadow-xl transition-all duration-300 flex flex-col"
+          >
+            <div className="relative aspect-[4/3] overflow-hidden">
+              <img
+                src="/images/figma/occasion-bridal.png"
+                alt="Royal Bridal"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute top-4 left-4">
+                <span className="px-3 py-1 rounded-full bg-[#221517] text-[#f5ebd7] font-bold text-[11px] shadow-xs">
+                  BRIDAL TROUSSEAU
+                </span>
+              </div>
+            </div>
+            <div className="p-6 flex-1 flex flex-col justify-between space-y-2">
+              <div>
+                <h3 className="font-serif text-xl font-bold text-[#221517] group-hover:text-[#8b6528] transition-colors">
+                  Royal Bridal
+                </h3>
+                <p className="text-xs sm:text-sm text-zinc-600 mt-1">
+                  Grand heirloom bridal sets crafted for your most unforgettable milestone.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#8b6528] group-hover:translate-x-1 transition-transform pt-2">
+                Explore Bridal <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </div>
+          </Link>
+        </div>
+      </section>
+
+      {/* ==============================================================
+          6. "MOST LOVED" (BESTSELLER PRODUCT CARDS - FIGMA ASSETS)
+      ============================================================== */}
+      <section className="bg-[#f7f2ea] py-16 sm:py-20 border-y border-[#ebdcc9]">
+        <div className="max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-10">
+            <div>
+              <span className="text-[11px] font-bold text-[#caa15e] tracking-widest uppercase">
+                BESTSELLERS
+              </span>
+              <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#221517] tracking-tight mt-1">
+                Most Loved
+              </h2>
+            </div>
+            <Link
+              href="/products"
+              className="text-xs sm:text-sm font-semibold text-[#8b6528] hover:text-[#caa15e] flex items-center gap-1 group"
+            >
+              View Catalog
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {bestsellers.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl bg-white border border-[#ebdcc9] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col"
+              >
+                {/* Product Image */}
+                <div className="relative aspect-square overflow-hidden bg-zinc-100">
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  {/* Badge */}
+                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-[#221517] text-[#f5ebd7] text-[10px] font-bold uppercase tracking-wider">
+                    {item.badge}
                   </span>
-                  <Link href={`/products/${prod.slug}`}>
-                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mt-1 line-clamp-2 hover:text-indigo-600 transition-colors">
-                      {prod.name}
-                    </h3>
-                  </Link>
 
-                  {/* Rating */}
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <div className="flex text-amber-400">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                    <span className="text-xs text-zinc-400 font-medium">
-                      ({prod.reviewsCount || 12})
-                    </span>
-                  </div>
+                  {/* Wishlist Button */}
+                  <button
+                    className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white text-zinc-700 hover:text-rose-500 shadow-md transition-colors"
+                    title="Add to Wishlist"
+                  >
+                    <Heart className="w-4 h-4" />
+                  </button>
                 </div>
 
-                {/* Price & Add to Cart */}
-                <div className="flex items-center justify-between pt-4 mt-3 border-t border-zinc-100 dark:border-zinc-800">
+                {/* Info Body */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
                   <div>
-                    <span className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-                      ${(prod.offerPrice || prod.price).toFixed(2)}
+                    <span className="text-[10px] text-zinc-400 uppercase font-semibold tracking-wider">
+                      {item.category}
                     </span>
-                    {prod.offerPrice && (
-                      <span className="text-xs text-zinc-400 line-through ml-2">
-                        ${prod.price.toFixed(2)}
+                    <Link href={`/products/${item.slug}`}>
+                      <h3 className="text-sm font-semibold text-[#221517] hover:text-[#8b6528] line-clamp-2 transition-colors mt-0.5">
+                        {item.name}
+                      </h3>
+                    </Link>
+
+                    {/* Stars */}
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <div className="flex text-amber-500">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-zinc-500 font-medium">
+                        ({item.reviewsCount})
                       </span>
-                    )}
+                    </div>
                   </div>
 
-                  <button
-                    onClick={() =>
-                      addItem({
-                        productId: prod.id,
-                        name: prod.name,
-                        slug: prod.slug,
-                        price: prod.offerPrice || prod.price,
-                        thumbImage: prod.thumbImage,
-                        qty: 1,
-                        variantTotal: 0,
-                      })
-                    }
-                    className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white transition-colors"
-                    title="Add to Cart"
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                  </button>
+                  {/* Price & Add to Cart button */}
+                  <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-base font-bold text-[#221517]">
+                        ₹{item.offerPrice.toLocaleString()}
+                      </span>
+                      {item.price && (
+                        <span className="text-xs text-zinc-400 line-through ml-2">
+                          ₹{item.price.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        addItem({
+                          productId: item.id,
+                          name: item.name,
+                          slug: item.slug,
+                          price: item.offerPrice,
+                          thumbImage: item.image,
+                          qty: 1,
+                          variantTotal: 0,
+                        })
+                      }
+                      className="px-3.5 py-1.5 rounded-lg bg-[#221517] hover:bg-[#caa15e] text-white hover:text-zinc-950 font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-xs"
+                      title="Add to Bag"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      Add to Bag
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ==============================================================
+          7. "UP TO 40% OFF" FLASH SALE COUNTDOWN STRIP
+      ============================================================== */}
+      <section className="bg-[#241517] text-white py-14 px-4 sm:px-6 lg:px-8 shadow-xl">
+        <div className="max-w-[1340px] mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="space-y-2 text-center md:text-left">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#caa15e]/20 border border-[#caa15e]/30 text-[#f5ebd7] text-xs font-bold uppercase tracking-wider">
+              <Flame className="w-3.5 h-3.5 text-[#caa15e] fill-[#caa15e]" /> Limited Time Flash Sale
+            </div>
+            <h3 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-white">
+              Up to 40% Off
+            </h3>
+            <p className="text-zinc-300 text-xs sm:text-sm max-w-md">
+              Strictly limited quantities crafted by certified heritage guilds. Prices revert once timer expires.
+            </p>
+
+            <div className="pt-2">
+              <Link
+                href="/flash-sale"
+                className="inline-block px-7 py-3 rounded-full bg-[#caa15e] hover:bg-[#b88c49] text-zinc-950 text-xs sm:text-sm font-bold shadow-lg transition-all"
+              >
+                Shop Flash Sale
+              </Link>
+            </div>
+          </div>
+
+          {/* Countdown Timer Dials */}
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div className="flex flex-col items-center justify-center w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-[#2e1c1f] border border-[#caa15e]/30 shadow-inner">
+              <span className="text-2xl sm:text-3xl font-bold font-mono text-[#f5ebd7]">
+                {String(timeLeft.hours).padStart(2, "0")}
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-zinc-400">Hours</span>
+            </div>
+            <span className="text-2xl font-bold text-[#caa15e]">:</span>
+            <div className="flex flex-col items-center justify-center w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-[#2e1c1f] border border-[#caa15e]/30 shadow-inner">
+              <span className="text-2xl sm:text-3xl font-bold font-mono text-[#f5ebd7]">
+                {String(timeLeft.minutes).padStart(2, "0")}
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-zinc-400">Mins</span>
+            </div>
+            <span className="text-2xl font-bold text-[#caa15e]">:</span>
+            <div className="flex flex-col items-center justify-center w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-[#2e1c1f] border border-[#caa15e]/30 shadow-inner">
+              <span className="text-2xl sm:text-3xl font-bold font-mono text-[#f5ebd7]">
+                {String(timeLeft.seconds).padStart(2, "0")}
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-zinc-400">Secs</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ==============================================================
+          8. "HEIRLOOM CRAFT, EVERYDAY PRICE" (KARIGAR STORY - FIGMA ASSET)
+      ============================================================== */}
+      <section className="max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          {/* Left: Artisan Hands at Workbench Image */}
+          <div className="lg:col-span-6 relative">
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-amber-900/10 aspect-[4/3]">
+              <img
+                src="/images/figma/brand-story.png"
+                alt="Artisan shaping heirloom jewelry"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              <div className="absolute bottom-6 left-6 right-6 p-4 rounded-xl bg-white/95 backdrop-blur-md shadow-lg border border-amber-900/10 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-[#8b6528]">
+                    GENUINE KARIGAR GUILD
+                  </span>
+                  <p className="text-xs sm:text-sm font-semibold text-[#221517]">
+                    Handcrafted in Jaipur & Thrissur
+                  </p>
+                </div>
+                <ShieldCheck className="w-6 h-6 text-[#caa15e]" />
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Story & Stats */}
+          <div className="lg:col-span-6 space-y-6">
+            <span className="text-[11px] font-bold text-[#caa15e] tracking-widest uppercase">
+              OUR PROMISE
+            </span>
+            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-[#221517] tracking-tight leading-[1.15]">
+              Heirloom Craft, <br />
+              Everyday Price
+            </h2>
+            <p className="text-zinc-600 text-sm sm:text-base leading-relaxed">
+              We bridge the gap between generational master craftsmen in Jaipur, Kolkata, and Thrissur directly to your doorstep. Without excessive retail markups or middleman commissions, you enjoy museum-grade fine jewellery at transparent, honest prices.
+            </p>
+
+            {/* Stats Row */}
+            <div className="grid grid-cols-3 gap-6 pt-4 border-t border-[#ebdcc9]">
+              <div>
+                <span className="font-serif text-3xl font-bold text-[#221517]">40+</span>
+                <p className="text-xs text-zinc-500 mt-0.5">Master Karigars</p>
+              </div>
+              <div>
+                <span className="font-serif text-3xl font-bold text-[#221517]">25k+</span>
+                <p className="text-xs text-zinc-500 mt-0.5">Happy Patrons</p>
+              </div>
+              <div>
+                <span className="font-serif text-3xl font-bold text-[#221517]">4.9★</span>
+                <p className="text-xs text-zinc-500 mt-0.5">Trust Rating</p>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Link
+                href="/about"
+                className="inline-flex items-center gap-2 text-sm font-bold text-[#8b6528] hover:text-[#caa15e] group"
+              >
+                Read Our Story
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ==============================================================
+          9. FULL-WIDTH BRIDAL BANNER ("Every Ritual, Beautifully Adorned" - FIGMA ASSET)
+      ============================================================== */}
+      <section className="relative overflow-hidden bg-[#180e10] text-white min-h-[500px] flex items-center">
+        <div className="absolute inset-0">
+          <img
+            src="/images/figma/bridal-banner.png"
+            alt="Royal Indian Bride"
+            className="w-full h-full object-cover object-[center_35%] opacity-80"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#180e10]/95 via-[#180e10]/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#180e10] via-transparent to-transparent opacity-70" />
+        </div>
+
+        <div className="relative max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full z-10">
+          <div className="max-w-xl space-y-5">
+            <span className="px-3.5 py-1.5 rounded-full bg-[#caa15e] text-zinc-950 font-bold text-xs uppercase tracking-wider shadow-sm">
+              BRIDAL COUTURE
+            </span>
+
+            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-[1.15]">
+              Every Ritual, <br />
+              Beautifully Adorned
+            </h2>
+
+            <p className="text-zinc-300 text-sm sm:text-base leading-relaxed">
+              From the haldi ceremony to the grand reception, discover bespoke bridal jewellery sets crafted to sanctify every auspicious moment.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-4 pt-2">
+              <Link
+                href="/products?category=bridal"
+                className="px-8 py-3.5 rounded-full bg-[#caa15e] hover:bg-[#b88c49] text-zinc-950 font-bold text-xs sm:text-sm shadow-lg transition-all"
+              >
+                Shop Bridal
+              </Link>
+              <Link
+                href="/contact"
+                className="px-7 py-3.5 rounded-full border border-white/40 hover:border-white text-white font-semibold text-xs sm:text-sm hover:bg-white/10 transition-all"
+              >
+                Book Consultation
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ==============================================================
+          10. "WHAT THEY SAY" (CUSTOMER REVIEWS - FIGMA PORTRAITS)
+      ============================================================== */}
+      <section className="max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <div className="text-center max-w-xl mx-auto mb-12">
+          <span className="text-[11px] font-bold text-[#caa15e] tracking-widest uppercase">
+            TESTIMONIALS
+          </span>
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#221517] tracking-tight mt-1">
+            What They Say
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+          {testimonials.map((t, idx) => (
+            <div
+              key={idx}
+              className="bg-white p-7 rounded-2xl border border-[#ebdcc9] shadow-sm hover:shadow-lg transition-all flex flex-col justify-between space-y-5"
+            >
+              {/* Star Rating */}
+              <div className="space-y-3">
+                <div className="flex text-amber-500">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                  ))}
+                </div>
+                <p className="text-xs sm:text-sm text-zinc-700 italic leading-relaxed">
+                  "{t.comment}"
+                </p>
+              </div>
+
+              {/* Author */}
+              <div className="flex items-center gap-3 pt-3 border-t border-zinc-100">
+                <img
+                  src={t.avatar}
+                  alt={t.name}
+                  className="w-10 h-10 rounded-full object-cover border border-[#ebdcc9]"
+                />
+                <div>
+                  <h4 className="text-xs font-bold text-[#221517]">{t.name}</h4>
+                  <p className="text-[10px] text-zinc-500">{t.location} • Verified Buyer</p>
                 </div>
               </div>
             </div>
@@ -444,28 +1055,47 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 5. Artisan Marketplace Banner / CTA */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-8 sm:p-12 flex flex-col lg:flex-row items-center justify-between gap-8">
-          <div className="space-y-3 text-center lg:text-left">
-            <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">
-              Empowering Craftsmen Worldwide
+      {/* ==============================================================
+          11. "FOLLOW US" (INSTAGRAM GALLERY - FIGMA ASSETS)
+      ============================================================== */}
+      <section className="bg-[#f5ede1] py-16 sm:py-20 border-t border-[#ebdcc9]">
+        <div className="max-w-[1340px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-xl mx-auto mb-10">
+            <span className="text-[11px] font-bold text-[#caa15e] tracking-widest uppercase">
+              @SAWARIYAARTS
             </span>
-            <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Are you an artisan, guild, or traditional creator?
-            </h3>
-            <p className="text-sm text-zinc-400 max-w-xl">
-              Showcase your handcrafted sculptures, paintings, and heritage works to collectors
-              across 45+ countries with zero upfront listing fees and secure payouts.
-            </p>
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#221517] tracking-tight mt-1">
+              Follow Us
+            </h2>
           </div>
 
-          <Link
-            href="/account/become-vendor"
-            className="px-6 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/20 whitespace-nowrap transition-all"
-          >
-            Apply as Verified Merchant
-          </Link>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            {instaPosts.map((post, i) => (
+              <a
+                key={i}
+                href="https://instagram.com"
+                target="_blank"
+                rel="noreferrer"
+                className="group relative aspect-square rounded-2xl overflow-hidden shadow-sm border border-amber-900/10 block"
+              >
+                <img
+                  src={post.image}
+                  alt="Sawariya Arts styling"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                  <div className="flex flex-col items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                    <svg className="w-6 h-6 text-[#caa15e] fill-none stroke-current stroke-2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+                    </svg>
+                    <span className="text-[11px] font-semibold">{post.handle}</span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
         </div>
       </section>
     </div>

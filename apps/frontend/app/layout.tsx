@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
@@ -17,10 +17,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const playfair = Playfair_Display({
+  variable: "--font-serif",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "Sawariya Arts - Premier Artisan & Multi-Vendor Marketplace",
+  title: "Sawariya Arts - Premier Heirloom Jewellery & Artisan Marketplace",
   description:
-    "Discover handcrafted sculptures, traditional artworks, and curated goods from independent master artisans around the world.",
+    "Discover handcrafted gold, kundan, polki, diamond jewellery and bridal sets from master karigars.",
 };
 
 export default function RootLayout({
@@ -31,9 +36,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+      <body className="min-h-full flex flex-col bg-[#faf8f5] text-[#221517]">
         <AuthProvider>
           <CartProvider>
             <Navbar />
