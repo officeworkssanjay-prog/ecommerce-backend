@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import { api } from "@/lib/api";
 import {
   Sparkles,
   ArrowRight,
@@ -217,7 +218,70 @@ export default function HomePage() {
     },
   ];
 
+  // Dynamic state loaded from backend with original mock fallbacks
+  const [categoriesList, setCategoriesList] = useState(categories);
+  const [bestsellersList, setBestsellersList] = useState(bestsellers);
+
+  useEffect(() => {
+    async function loadHome() {
+      try {
+        const res = await api.get("/storefront/home");
+        if (res.success && res.data) {
+          if (res.data.categories && res.data.categories.length > 0) {
+            setCategoriesList(
+              res.data.categories.slice(0, 8).map((c: any) => ({
+                name: c.name,
+                href: `/products?category=${c.slug}`,
+                image:
+                  c.icon && c.icon.startsWith("/")
+                    ? c.icon
+                    : `/images/figma/cat-${
+                        c.slug.includes("neck")
+                          ? "necklaces"
+                          : c.slug.includes("ring")
+                          ? "rings"
+                          : c.slug.includes("bangle")
+                          ? "bangles"
+                          : c.slug.includes("ear") || c.slug.includes("jhum")
+                          ? "earrings"
+                          : c.slug.includes("ank")
+                          ? "anklets"
+                          : c.slug.includes("chain")
+                          ? "chains"
+                          : "bridal"
+                      }.png`,
+              }))
+            );
+          }
+          if (res.data.featuredProducts && res.data.featuredProducts.length > 0) {
+            setBestsellersList(
+              res.data.featuredProducts.map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                slug: p.slug,
+                price: p.price,
+                offerPrice: p.offerPrice || p.price,
+                image:
+                  p.thumbImage && (p.thumbImage.startsWith("/") || p.thumbImage.startsWith("http"))
+                    ? p.thumbImage
+                    : "/images/figma/bestseller-1.png",
+                rating: 5,
+                reviewsCount: 38,
+                category: p.category?.name || "Jewellery",
+                badge: p.productType || "BESTSELLER",
+              }))
+            );
+          }
+        }
+      } catch {
+        // preserve rich default mock data
+      }
+    }
+    loadHome();
+  }, []);
+
   // Testimonials (Original Figma portraits)
+
   const testimonials = [
     {
       name: "Pooja Sharma",
@@ -453,7 +517,7 @@ export default function HomePage() {
 
         {/* 8 Circular items */}
         <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-4 sm:gap-6">
-          {categories.map((cat) => (
+          {categoriesList.map((cat) => (
             <Link
               key={cat.name}
               href={cat.href}
@@ -748,7 +812,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {bestsellers.map((item) => (
+            {bestsellersList.map((item) => (
               <div
                 key={item.id}
                 className="rounded-2xl bg-white border border-[#ebdcc9] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col"

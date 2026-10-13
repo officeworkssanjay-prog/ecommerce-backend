@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { api, withFallback } from "@/lib/api";
+import { ImageUpload } from "@/components/ImageUpload";
 import {
   Package,
   Plus,
@@ -362,15 +363,13 @@ export default function VendorProductsPage() {
               </div>
 
               <div>
-                <label className="font-semibold block mb-1">Image URL</label>
-                <input
-                  type="url"
+                <ImageUpload
                   value={formData.thumbImage}
-                  onChange={(e) => setFormData({ ...formData, thumbImage: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  onChange={(url) => setFormData({ ...formData, thumbImage: url })}
+                  label="Product Photography / Image"
                 />
               </div>
+
 
               <div>
                 <label className="font-semibold block mb-1">Short Description</label>

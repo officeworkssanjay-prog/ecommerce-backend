@@ -43,11 +43,27 @@ export default function CheckoutPage() {
   });
 
   // Shipping rules
-  const [shippingRules] = useState<any[]>([
+  const [shippingRules, setShippingRules] = useState<any[]>([
     { id: "ship-1", name: "Complimentary Insured Courier", cost: 0 },
     { id: "ship-2", name: "Armored Express Vault Courier", cost: 45 },
   ]);
   const [selectedShippingRuleId, setSelectedShippingRuleId] = useState("ship-1");
+
+  // Load active shipping rules from backend
+  useEffect(() => {
+    async function loadShippingRules() {
+      try {
+        const res = await api.get("/storefront/shipping-rules");
+        if (res.success && res.data && res.data.length > 0) {
+          setShippingRules(res.data);
+          setSelectedShippingRuleId(res.data[0].id);
+        }
+      } catch {
+        // keep default fallback rules
+      }
+    }
+    loadShippingRules();
+  }, []);
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "STRIPE" | "RAZORPAY">("COD");
@@ -146,6 +162,7 @@ export default function CheckoutPage() {
       const payload = {
         items: items.map((it) => ({
           productId: it.productId,
+          id: it.productId,
           name: it.name,
           price: it.price,
           qty: it.qty,

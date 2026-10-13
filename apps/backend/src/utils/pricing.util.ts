@@ -1,5 +1,6 @@
 export interface CartLineItem {
-  id: string; // product id
+  id: string; // product id or line item id
+  productId?: string;
   name: string;
   price: number;
   qty: number;
