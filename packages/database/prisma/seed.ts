@@ -250,13 +250,12 @@ async function main() {
 
   // 9. Seed Jewellery Products
   const prod1 = await prisma.product.upsert({
-    where: { slug: "royal-kundan-choker-emerald-droplets" },
+    where: { slug: "royal-kundan-pendant-choker" },
     update: {},
     create: {
-      name: "18K Gold Royal Kundan Choker with Zambian Emeralds",
-      slug: "royal-kundan-choker-emerald-droplets",
-      thumbImage:
-        "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80",
+      name: "18K Gold Royal Kundan Pendant Choker",
+      slug: "royal-kundan-pendant-choker",
+      thumbImage: "/images/figma/bestseller-1.png",
       categoryId: catBridal.id,
       subCategoryId: subJadau.id,
       brandId: brandRoyal.id,
@@ -315,8 +314,7 @@ async function main() {
     create: {
       name: "1.50 Ct VVS1 Solitaire Diamond Ring in Platinum",
       slug: "solitaire-diamond-ring-platinum-band",
-      thumbImage:
-        "https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80",
+      thumbImage: "/images/figma/bestseller-4.png",
       categoryId: catRings.id,
       subCategoryId: subSolitaires.id,
       brandId: brandSurat.id,
@@ -342,8 +340,7 @@ async function main() {
     create: {
       name: "22K Solid Gold Antique Temple Nakshi Bangles (Pair)",
       slug: "antique-nakshi-temple-gold-bangles",
-      thumbImage:
-        "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=80",
+      thumbImage: "/images/figma/bestseller-3.png",
       categoryId: catBangles.id,
       brandId: brandRoyal.id,
       vendorId: vendorShop.id,
@@ -361,13 +358,12 @@ async function main() {
 
   // Product 4: Polki Jhumkas
   await prisma.product.upsert({
-    where: { slug: "heritage-uncut-diamond-polki-chandbali-jhumkas" },
+    where: { slug: "heritage-polki-chandbali-jhumkas" },
     update: {},
     create: {
       name: "Heritage Uncut Diamond Polki Chandbali Jhumkas",
-      slug: "heritage-uncut-diamond-polki-chandbali-jhumkas",
-      thumbImage:
-        "https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=800&q=80",
+      slug: "heritage-polki-chandbali-jhumkas",
+      thumbImage: "/images/figma/bestseller-2.png",
       categoryId: catPolki.id,
       brandId: brandRoyal.id,
       vendorId: vendorShop.id,

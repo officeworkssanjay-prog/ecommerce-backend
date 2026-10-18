@@ -727,17 +727,43 @@ export class AdminController {
         thumbImage,
       } = req.body;
 
+      let resolvedVendorId = vendorId;
+      if (!resolvedVendorId) {
+        const firstVendor = await prisma.vendor.findFirst();
+        resolvedVendorId = firstVendor?.id;
+      }
+      if (!resolvedVendorId) {
+        let defaultVendor = await prisma.vendor.findFirst({ where: { shopName: "Sawariya Royal Atelier" } });
+        if (!defaultVendor) {
+          defaultVendor = await prisma.vendor.create({
+            data: {
+              userId: req.user!.id,
+              shopName: "Sawariya Royal Atelier",
+              status: true,
+            },
+          });
+        }
+        resolvedVendorId = defaultVendor.id;
+      }
+
+      let resolvedCategoryId = categoryId;
+      if (!resolvedCategoryId) {
+        const firstCat = await prisma.category.findFirst({ where: { status: true } });
+        resolvedCategoryId = firstCat?.id;
+      }
+
       const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
 
       const product = await prisma.product.create({
         data: {
-          vendorId,
+          vendorId: resolvedVendorId,
           name,
           slug,
-          categoryId,
+          categoryId: resolvedCategoryId,
           subCategoryId,
           childCategoryId,
           brandId,
+
           qty: Number(qty),
           shortDescription,
           longDescription,

@@ -90,7 +90,6 @@ export class VendorController {
    */
   static async createProduct(req: Request, res: Response) {
     try {
-      const vendorId = req.user!.vendorId!;
       const {
         name,
         categoryId,
@@ -108,6 +107,27 @@ export class VendorController {
         thumbImage,
       } = req.body;
 
+      let vendorId = req.user?.vendorId;
+      if (!vendorId) {
+        let vendor = await prisma.vendor.findUnique({ where: { userId: req.user!.id } });
+        if (!vendor) {
+          vendor = await prisma.vendor.create({
+            data: {
+              userId: req.user!.id,
+              shopName: `${req.user!.name}'s Atelier`,
+              status: true,
+            },
+          });
+        }
+        vendorId = vendor.id;
+      }
+
+      let resolvedCategoryId = categoryId;
+      if (!resolvedCategoryId) {
+        const firstCat = await prisma.category.findFirst({ where: { status: true } });
+        resolvedCategoryId = firstCat?.id;
+      }
+
       const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
 
       const product = await prisma.product.create({
@@ -115,10 +135,11 @@ export class VendorController {
           vendorId,
           name,
           slug,
-          categoryId,
+          categoryId: resolvedCategoryId,
           subCategoryId,
           childCategoryId,
           brandId,
+
           qty: Number(qty),
           shortDescription,
           longDescription,

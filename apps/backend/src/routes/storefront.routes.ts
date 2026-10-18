@@ -12,6 +12,7 @@ router.get("/vendors", StorefrontController.getVendors);
 router.get("/flash-sale", StorefrontController.getFlashSale);
 router.get("/categories", StorefrontController.getCategories);
 router.get("/brands", StorefrontController.getBrands);
+router.get("/shipping-rules", StorefrontController.getShippingRules);
 
 // Blog & CMS
 router.get("/blogs", StorefrontController.getBlogs);

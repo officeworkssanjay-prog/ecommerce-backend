@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import path from "path";
 import authRoutes from "./routes/auth.routes";
 import storefrontRoutes from "./routes/storefront.routes";
 import orderRoutes from "./routes/order.routes";
@@ -8,6 +9,7 @@ import vendorRoutes from "./routes/vendor.routes";
 import adminRoutes from "./routes/admin.routes";
 import userRoutes from "./routes/user.routes";
 import chatRoutes from "./routes/chat.routes";
+import uploadRoutes from "./routes/upload.routes";
 
 export const app = express();
 
@@ -22,6 +24,9 @@ app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 app.use(cookieParser());
 
+// Static file hosting for uploaded media
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -35,6 +40,8 @@ app.use("/api/vendor", vendorRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/upload", uploadRoutes);
+
 
 // Global error handler
 app.use(

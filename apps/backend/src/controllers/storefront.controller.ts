@@ -474,5 +474,21 @@ export class StorefrontController {
       return res.status(500).json({ success: false, message: error.message });
     }
   }
+
+  /**
+   * Active Shipping Rules for Checkout calculation
+   */
+  static async getShippingRules(req: Request, res: Response) {
+    try {
+      const rules = await prisma.shippingRule.findMany({
+        where: { status: true },
+        orderBy: { cost: "asc" },
+      });
+      return res.json({ success: true, data: rules });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }
+
 
