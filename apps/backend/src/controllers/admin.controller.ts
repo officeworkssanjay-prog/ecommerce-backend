@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import { RoleEnum } from "@ecommerce/shared-types";
 import {
   prisma,
   OrderStatus,
   PaymentStatus,
-  WithdrawStatus,
   Role,
 } from "@ecommerce/database";
 
@@ -16,19 +16,15 @@ export class AdminController {
     try {
       const [
         totalUsers,
-        totalVendors,
         totalProducts,
         totalOrders,
-        pendingProducts,
-        pendingWithdrawals,
+        pendingOrders,
         revenueData,
       ] = await Promise.all([
         prisma.user.count({ where: { role: Role.USER } }),
-        prisma.vendor.count({ where: { status: true } }),
         prisma.product.count({ where: { status: true } }),
         prisma.order.count(),
-        prisma.product.count({ where: { isApproved: false } }),
-        prisma.withdrawRequest.count({ where: { status: WithdrawStatus.PENDING } }),
+        prisma.order.count({ where: { orderStatus: OrderStatus.PENDING } }),
         prisma.order.aggregate({
           _sum: { amount: true },
           where: { paymentStatus: PaymentStatus.PAID },
@@ -39,55 +35,11 @@ export class AdminController {
         success: true,
         data: {
           totalUsers,
-          totalVendors,
           totalProducts,
           totalOrders,
-          pendingProducts,
-          pendingWithdrawals,
+          pendingOrders,
           totalRevenue: revenueData._sum.amount || 0,
         },
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  /**
-   * Pending Seller Products Moderation Queue
-   */
-  static async getPendingProducts(req: Request, res: Response) {
-    try {
-      const products = await prisma.product.findMany({
-        where: { isApproved: false },
-        include: {
-          vendor: { select: { shopName: true, email: true } },
-          category: { select: { name: true } },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-      return res.json({ success: true, data: products });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  /**
-   * Approve or reject seller product
-   */
-  static async updateProductApproval(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const { isApproved } = req.body;
-
-      const product = await prisma.product.update({
-        where: { id },
-        data: { isApproved: Boolean(isApproved) },
-      });
-
-      return res.json({
-        success: true,
-        message: `Product ${isApproved ? "approved" : "unapproved"} successfully`,
-        data: product,
       });
     } catch (error: any) {
       return res.status(500).json({ success: false, message: error.message });
@@ -149,103 +101,18 @@ export class AdminController {
   }
 
   /**
-   * Merchant Payout Requests list
-   */
-  static async getWithdrawals(req: Request, res: Response) {
-    try {
-      const withdrawals = await prisma.withdrawRequest.findMany({
-        include: {
-          vendor: { select: { shopName: true, email: true } },
-          method: { select: { name: true } },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-      return res.json({ success: true, data: withdrawals });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  /**
-   * Approve or decline payout request
-   */
-  static async updateWithdrawalStatus(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const { status } = req.body; // "PAID" or "DECLINED"
-
-      const withdrawal = await prisma.withdrawRequest.update({
-        where: { id },
-        data: { status: status as WithdrawStatus },
-      });
-
-      return res.json({
-        success: true,
-        message: `Withdrawal marked as ${status}`,
-        data: withdrawal,
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  /**
-   * Vendor Applications Queue
-   */
-  static async getVendorRequests(req: Request, res: Response) {
-    try {
-      const requests = await prisma.vendor.findMany({
-        where: { status: false },
-        include: { user: { select: { name: true, email: true } } },
-      });
-      return res.json({ success: true, data: requests });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  /**
-   * Approve vendor application and elevate user role
-   */
-  static async approveVendor(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const { approve } = req.body;
-
-      const vendor = await prisma.vendor.findUnique({ where: { id } });
-      if (!vendor) {
-        return res.status(404).json({ success: false, message: "Vendor application not found" });
-      }
-
-      if (approve) {
-        await prisma.$transaction([
-          prisma.vendor.update({
-            where: { id },
-            data: { status: true },
-          }),
-          prisma.user.update({
-            where: { id: vendor.userId },
-            data: { role: Role.VENDOR },
-          }),
-        ]);
-        return res.json({ success: true, message: "Vendor approved and role updated" });
-      } else {
-        await prisma.vendor.delete({ where: { id } });
-        return res.json({ success: true, message: "Vendor application rejected" });
-      }
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  /**
    * User & Customer Governance
    */
   static async getUsers(req: Request, res: Response) {
     try {
       const { role, status } = req.query;
       const where: any = {};
-      if (role) where.role = role as Role;
+      if (role) {
+        if (!RoleEnum.safeParse(role).success) {
+          return res.status(400).json({ success: false, message: "role must be ADMIN or USER" });
+        }
+        where.role = role as Role;
+      }
       if (status !== undefined) where.status = status === "true";
 
       const users = await prisma.user.findMany({
@@ -257,7 +124,6 @@ export class AdminController {
           role: true,
           status: true,
           createdAt: true,
-          vendor: { select: { id: true, shopName: true } },
         },
         orderBy: { createdAt: "desc" },
       });
@@ -287,6 +153,9 @@ export class AdminController {
   static async createUser(req: Request, res: Response) {
     try {
       const { name, email, password, role } = req.body;
+      if (role !== undefined && !RoleEnum.safeParse(role).success) {
+        return res.status(400).json({ success: false, message: "role must be ADMIN or USER" });
+      }
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
         return res.status(400).json({ success: false, message: "Email already exists" });
@@ -307,72 +176,6 @@ export class AdminController {
       });
 
       return res.status(201).json({ success: true, message: "User created", data: user });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  /**
-   * Vendor List & Conditions
-   */
-  static async getVendors(req: Request, res: Response) {
-    try {
-      const vendors = await prisma.vendor.findMany({
-        include: {
-          user: { select: { name: true, email: true } },
-          _count: { select: { products: true, orderProducts: true } },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-      return res.json({ success: true, data: vendors });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  static async updateVendorStatus(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const { status } = req.body;
-
-      const vendor = await prisma.vendor.update({
-        where: { id },
-        data: { status: Boolean(status) },
-      });
-
-      return res.json({ success: true, message: "Vendor status updated", data: vendor });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  static async getVendorCondition(req: Request, res: Response) {
-    try {
-      const condition = await prisma.vendorCondition.findFirst();
-      return res.json({ success: true, data: condition });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  static async updateVendorCondition(req: Request, res: Response) {
-    try {
-      const { content } = req.body;
-      const existing = await prisma.vendorCondition.findFirst();
-
-      let condition;
-      if (existing) {
-        condition = await prisma.vendorCondition.update({
-          where: { id: existing.id },
-          data: { content },
-        });
-      } else {
-        condition = await prisma.vendorCondition.create({
-          data: { content },
-        });
-      }
-
-      return res.json({ success: true, message: "Vendor condition updated", data: condition });
     } catch (error: any) {
       return res.status(500).json({ success: false, message: error.message });
     }
@@ -698,7 +501,6 @@ export class AdminController {
     try {
       const products = await prisma.product.findMany({
         include: {
-          vendor: { select: { shopName: true } },
           category: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -712,7 +514,6 @@ export class AdminController {
   static async createProduct(req: Request, res: Response) {
     try {
       const {
-        vendorId,
         name,
         categoryId,
         subCategoryId,
@@ -727,25 +528,6 @@ export class AdminController {
         thumbImage,
       } = req.body;
 
-      let resolvedVendorId = vendorId;
-      if (!resolvedVendorId) {
-        const firstVendor = await prisma.vendor.findFirst();
-        resolvedVendorId = firstVendor?.id;
-      }
-      if (!resolvedVendorId) {
-        let defaultVendor = await prisma.vendor.findFirst({ where: { shopName: "Sawariya Royal Atelier" } });
-        if (!defaultVendor) {
-          defaultVendor = await prisma.vendor.create({
-            data: {
-              userId: req.user!.id,
-              shopName: "Sawariya Royal Atelier",
-              status: true,
-            },
-          });
-        }
-        resolvedVendorId = defaultVendor.id;
-      }
-
       let resolvedCategoryId = categoryId;
       if (!resolvedCategoryId) {
         const firstCat = await prisma.category.findFirst({ where: { status: true } });
@@ -756,7 +538,6 @@ export class AdminController {
 
       const product = await prisma.product.create({
         data: {
-          vendorId: resolvedVendorId,
           name,
           slug,
           categoryId: resolvedCategoryId,
@@ -771,7 +552,6 @@ export class AdminController {
           offerPrice: offerPrice ? Number(offerPrice) : null,
           productType,
           thumbImage: thumbImage || "/placeholder.png",
-          isApproved: true,
           status: true,
         },
       });
@@ -785,7 +565,7 @@ export class AdminController {
   static async updateProduct(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { name, categoryId, subCategoryId, childCategoryId, brandId, qty, price, offerPrice, status, isApproved } = req.body;
+      const { name, categoryId, subCategoryId, childCategoryId, brandId, qty, price, offerPrice, status } = req.body;
 
       const product = await prisma.product.update({
         where: { id },
@@ -799,7 +579,6 @@ export class AdminController {
           ...(price !== undefined && { price: Number(price) }),
           ...(offerPrice !== undefined && { offerPrice: Number(offerPrice) }),
           ...(status !== undefined && { status: Boolean(status) }),
-          ...(isApproved !== undefined && { isApproved: Boolean(isApproved) }),
         },
       });
 
@@ -1082,58 +861,6 @@ export class AdminController {
         create: { key, value },
       });
       return res.json({ success: true, message: "Advertisement banner updated", data: ad });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  /**
-   * Payout Methods CRUD
-   */
-  static async getWithdrawMethods(req: Request, res: Response) {
-    try {
-      const methods = await prisma.withdrawMethod.findMany();
-      return res.json({ success: true, data: methods });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  static async createWithdrawMethod(req: Request, res: Response) {
-    try {
-      const { name, minimumAmount, maximumAmount, withdrawChargePercent, description, status } = req.body;
-      const method = await prisma.withdrawMethod.create({
-        data: {
-          name,
-          minimumAmount: Number(minimumAmount),
-          maximumAmount: Number(maximumAmount),
-          withdrawChargePercent: Number(withdrawChargePercent) || 0,
-          description,
-          status: status !== undefined ? Boolean(status) : true,
-        },
-      });
-      return res.status(201).json({ success: true, message: "Payout method created", data: method });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  static async updateWithdrawMethod(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const { name, minimumAmount, maximumAmount, withdrawChargePercent, description, status } = req.body;
-      const method = await prisma.withdrawMethod.update({
-        where: { id },
-        data: {
-          ...(name && { name }),
-          ...(minimumAmount !== undefined && { minimumAmount: Number(minimumAmount) }),
-          ...(maximumAmount !== undefined && { maximumAmount: Number(maximumAmount) }),
-          ...(withdrawChargePercent !== undefined && { withdrawChargePercent: Number(withdrawChargePercent) }),
-          ...(description !== undefined && { description }),
-          ...(status !== undefined && { status: Boolean(status) }),
-        },
-      });
-      return res.json({ success: true, message: "Payout method updated", data: method });
     } catch (error: any) {
       return res.status(500).json({ success: false, message: error.message });
     }

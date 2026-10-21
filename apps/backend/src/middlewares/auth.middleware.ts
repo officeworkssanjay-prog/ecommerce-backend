@@ -40,7 +40,6 @@ export async function authenticate(
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      include: { vendor: { select: { id: true } } },
     });
 
     if (!user || !user.status) {
@@ -56,7 +55,6 @@ export async function authenticate(
       email: user.email,
       role: user.role as RoleType,
       avatar: user.avatar,
-      vendorId: user.vendor?.id || null,
     };
 
     next();

@@ -5,7 +5,6 @@ import path from "path";
 import authRoutes from "./routes/auth.routes";
 import storefrontRoutes from "./routes/storefront.routes";
 import orderRoutes from "./routes/order.routes";
-import vendorRoutes from "./routes/vendor.routes";
 import adminRoutes from "./routes/admin.routes";
 import userRoutes from "./routes/user.routes";
 import chatRoutes from "./routes/chat.routes";
@@ -36,7 +35,6 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/storefront", storefrontRoutes);
 app.use("/api/order", orderRoutes);
-app.use("/api/vendor", vendorRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);

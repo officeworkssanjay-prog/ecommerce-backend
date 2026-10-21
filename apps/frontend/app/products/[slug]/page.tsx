@@ -17,7 +17,6 @@ import {
   Heart,
   Share2,
   CheckCircle2,
-  Store,
   ChevronRight,
   Gem,
   Award,
@@ -78,11 +77,6 @@ export default function ProductDetailPage({
     ],
     category: { name: "Bridal Sets", slug: "bridal-sets" },
     brand: { name: "Sawariya Royal Atelier" },
-    vendor: {
-      id: "v-1",
-      shopName: "Imperial Goldsmiths Guild",
-      phone: "+91 98290 12345",
-    },
     shortDescription:
       "An ethereal bridal choker handcrafted in solid 18K yellow gold, ornamented with hand-set uncut polki diamonds, natural drop-cut emeralds, and fine meenakari work.",
     longDescription:
@@ -466,31 +460,6 @@ export default function ProductDetailPage({
             </div>
           </div>
 
-          {/* Artisan Guild Box */}
-          {prod.vendor && (
-            <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600">
-                  <Store className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">
-                    Master Artisan / Atelier
-                  </span>
-                  <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                    {prod.vendor.shopName}
-                  </h4>
-                </div>
-              </div>
-
-              <Link
-                href={`/vendors/${prod.vendor.id}`}
-                className="text-xs text-amber-600 dark:text-amber-400 font-semibold hover:underline"
-              >
-                Visit Atelier
-              </Link>
-            </div>
-          )}
         </div>
       </div>
 

@@ -46,13 +46,13 @@ export class StorefrontController {
             take: 12,
           }),
           prisma.product.findMany({
-            where: { status: true, isApproved: true, productType: "NEW_ARRIVAL" },
+            where: { status: true, productType: "NEW_ARRIVAL" },
             include: { variants: { include: { items: true } } },
             take: 8,
             orderBy: { createdAt: "desc" },
           }),
           prisma.product.findMany({
-            where: { status: true, isApproved: true, productType: "FEATURED_PRODUCT" },
+            where: { status: true, productType: "FEATURED_PRODUCT" },
             include: { variants: { include: { items: true } } },
             take: 8,
           }),
@@ -84,7 +84,6 @@ export class StorefrontController {
 
       const where: Prisma.ProductWhereInput = {
         status: true,
-        isApproved: true,
       };
 
       if (search) {
@@ -157,7 +156,6 @@ export class StorefrontController {
           subCategory: true,
           childCategory: true,
           brand: true,
-          vendor: { select: { id: true, shopName: true, banner: true, phone: true } },
           variants: {
             where: { status: true },
             include: {
@@ -172,28 +170,11 @@ export class StorefrontController {
         },
       });
 
-      if (!product || !product.status || !product.isApproved) {
+      if (!product || !product.status) {
         return res.status(404).json({ success: false, message: "Product not found" });
       }
 
       return res.json({ success: true, data: product });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  /**
-   * Public approved vendors directory
-   */
-  static async getVendors(req: Request, res: Response) {
-    try {
-      const vendors = await prisma.vendor.findMany({
-        where: { status: true },
-        include: {
-          _count: { select: { products: { where: { status: true, isApproved: true } } } },
-        },
-      });
-      return res.json({ success: true, data: vendors });
     } catch (error: any) {
       return res.status(500).json({ success: false, message: error.message });
     }

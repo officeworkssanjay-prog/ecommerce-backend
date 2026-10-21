@@ -2,8 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { RoleType } from "@ecommerce/shared-types";
 
 /**
- * Middleware to enforce strict role-based access control (Admin, Vendor, Customer)
- * Matches Laravel's App\Http\Middleware\RoleMiddleware
+ * Middleware to enforce role-based access control. Only two roles exist: ADMIN and USER.
  */
 export function requireRole(...allowedRoles: RoleType[]) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -24,3 +23,6 @@ export function requireRole(...allowedRoles: RoleType[]) {
     next();
   };
 }
+
+/** Shorthand for routes that only platform administrators may call. */
+export const requireAdmin = requireRole("ADMIN");

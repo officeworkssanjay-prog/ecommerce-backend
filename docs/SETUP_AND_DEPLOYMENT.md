@@ -95,7 +95,6 @@ php artisan migrate --seed
 > [!TIP]
 > **Default Test Credentials created by Seeder:**
 > - **Admin**: `admin@gmail.com` / `password`
-> - **Vendor**: `vendor@gmail.com` / `password`
 > - **Customer**: `user@gmail.com` / `password`
 
 ### 8. Link Storage Symlink

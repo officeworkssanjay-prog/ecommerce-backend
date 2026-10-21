@@ -31,7 +31,7 @@ interface ChatMessage {
 
 const mockConversations: Conversation[] = [
   {
-    partner: { id: "vendor-1", name: "Artisan Potteries Support", role: "VENDOR" },
+    partner: { id: "admin-1", name: "Sawariya Concierge", role: "ADMIN" },
     lastMessage: {
       id: "m-1",
       message: "Yes! Custom colors for the terracotta vase are available upon request.",
@@ -46,14 +46,14 @@ const mockMessages: ChatMessage[] = [
   {
     id: "m-1",
     senderId: "customer",
-    receiverId: "vendor-1",
+    receiverId: "admin-1",
     message: "Hi! Can this ceramic vase be made in turquoise glaze?",
     seen: true,
     createdAt: new Date(Date.now() - 3600000).toISOString(),
   },
   {
     id: "m-2",
-    senderId: "vendor-1",
+    senderId: "admin-1",
     receiverId: "customer",
     message: "Yes! Custom colors for the terracotta vase are available upon request.",
     seen: true,

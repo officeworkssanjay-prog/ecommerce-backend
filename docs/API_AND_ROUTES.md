@@ -1,5 +1,7 @@
 # API & Route Reference Guide
 
+> **Notice (2026-10-21):** The platform now has only two roles, `ADMIN` and `USER`. Every vendor / merchant, vendor application, product-approval (`is_approved`) and payout / withdrawal section below describes the original Laravel application and is **no longer implemented** in the Node.js backend. Use `postman_collection.json` for the live API surface.
+
 This document provides a comprehensive catalog of all routes registered across the Multi-Vendor E-Commerce Platform, categorized by domain, authentication middleware, HTTP method, URL pattern, and controller action.
 
 ---

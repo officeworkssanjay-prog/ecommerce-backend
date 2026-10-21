@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const RoleEnum = z.enum(["ADMIN", "VENDOR", "USER"]);
+export const RoleEnum = z.enum(["ADMIN", "USER"]);
 export type RoleType = z.infer<typeof RoleEnum>;
 
 export const LoginSchema = z.object({
@@ -32,5 +32,4 @@ export interface AuthUserSession {
   email: string;
   role: RoleType;
   avatar?: string | null;
-  vendorId?: string | null;
 }

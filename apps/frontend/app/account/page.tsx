@@ -10,7 +10,6 @@ import {
   Package,
   MapPin,
   Heart,
-  Store,
   ShieldCheck,
   Lock,
   Edit2,
@@ -151,16 +150,6 @@ export default function AccountOverviewPage() {
           <p className="text-xs text-zinc-400">View personal wishlist</p>
         </Link>
 
-        <Link
-          href="/account/become-vendor"
-          className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 hover:border-amber-500/50 hover:shadow-lg transition-all space-y-2 group"
-        >
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Store className="w-5 h-5" />
-          </div>
-          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Sell on Sawariya</h3>
-          <p className="text-xs text-zinc-400">Artisan merchant application</p>
-        </Link>
       </div>
 
       {/* Profile & Security Forms */}

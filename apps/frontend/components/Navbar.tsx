@@ -13,7 +13,6 @@ import {
   Menu,
   X,
   ChevronDown,
-  Store,
   LayoutDashboard,
   LogOut,
   Star,
@@ -406,17 +405,6 @@ export function Navbar() {
                           <Star className="w-4 h-4 text-[#caa15e]" />
                           My Reviews
                         </Link>
-
-                        {user.role === "VENDOR" && (
-                          <Link
-                            href="/vendor/dashboard"
-                            onClick={() => setUserDropdownOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-emerald-400 hover:bg-white/5 transition-colors"
-                          >
-                            <Store className="w-4 h-4" />
-                            Vendor Portal
-                          </Link>
-                        )}
 
                         {user.role === "ADMIN" && (
                           <Link
