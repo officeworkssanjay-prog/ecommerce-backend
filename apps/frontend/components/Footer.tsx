@@ -246,11 +246,6 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/account/become-vendor" className="hover:text-[#caa15e] transition-colors">
-                    Artisan Jeweller Portal
-                  </Link>
-                </li>
-                <li>
                   <Link href="/certifications" className="hover:text-[#caa15e] transition-colors">
                     Hallmarking & Authenticity
                   </Link>

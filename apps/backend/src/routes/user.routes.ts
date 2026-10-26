@@ -28,8 +28,4 @@ router.delete("/wishlist/:productId", UserController.removeFromWishlist);
 router.get("/reviews", UserController.getUserReviews);
 router.post("/reviews", UserController.createReview);
 
-// Merchant Application
-router.get("/vendor-request", UserController.getVendorRequestStatus);
-router.post("/vendor-request", UserController.submitVendorRequest);
-
 export default router;

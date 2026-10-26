@@ -8,7 +8,6 @@ async function main() {
 
   const salt = await bcrypt.genSalt(10);
   const adminPasswordHash = await bcrypt.hash("admin123", salt);
-  const vendorPasswordHash = await bcrypt.hash("vendor123", salt);
   const userPasswordHash = await bcrypt.hash("user123", salt);
 
   // 1. Seed Admin
@@ -27,40 +26,7 @@ async function main() {
   });
   console.log(`✅ Admin created: ${admin.email} (Password: admin123)`);
 
-  // 2. Seed Vendor User & Atelier
-  const vendorUser = await prisma.user.upsert({
-    where: { email: "artisan@jaipurkundan.com" },
-    update: { password: vendorPasswordHash },
-    create: {
-      name: "Rameshwar Soni",
-      email: "artisan@jaipurkundan.com",
-      password: vendorPasswordHash,
-      role: Role.VENDOR,
-      status: true,
-      phone: "+91 98290 22222",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
-    },
-  });
-
-  const vendorShop = await prisma.vendor.upsert({
-    where: { userId: vendorUser.id },
-    update: {},
-    create: {
-      userId: vendorUser.id,
-      shopName: "Imperial Jaipur Kundan Atelier",
-      email: "artisan@jaipurkundan.com",
-      phone: "+91 98290 22222",
-      address: "42 Johari Palace, Near City Palace, Jaipur, Rajasthan",
-      description:
-        "Four generations of certified master royal goldsmiths specializing in 22K antique jadau, natural polki chokers, and fine meenakari enamelling.",
-      banner:
-        "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=1600&q=80",
-      status: true, // Approved
-    },
-  });
-  console.log(`✅ Vendor & Atelier created: ${vendorShop.shopName} (Password: vendor123)`);
-
-  // 3. Seed Customer User
+  // 2. Seed Customer User
   const customer = await prisma.user.upsert({
     where: { email: "collector@gmail.com" },
     update: { password: userPasswordHash },
@@ -76,7 +42,7 @@ async function main() {
   });
   console.log(`✅ Customer created: ${customer.email} (Password: user123)`);
 
-  // 4. Seed Address for Customer
+  // 3. Seed Address for Customer
   await prisma.userAddress.createMany({
     data: [
       {
@@ -96,7 +62,7 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // 5. Seed Hero Sliders
+  // 4. Seed Hero Sliders
   await prisma.slider.createMany({
     data: [
       {
@@ -133,7 +99,7 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // 6. Seed Categories
+  // 5. Seed Categories
   const catBridal = await prisma.category.upsert({
     where: { slug: "bridal-sets" },
     update: {},
@@ -200,7 +166,7 @@ async function main() {
     },
   });
 
-  // 7. Seed Subcategories
+  // 6. Seed Subcategories
   const subJadau = await prisma.subCategory.upsert({
     where: { slug: "jadau-chokers" },
     update: {},
@@ -223,7 +189,7 @@ async function main() {
     },
   });
 
-  // 8. Seed Brands
+  // 7. Seed Brands
   const brandRoyal = await prisma.brand.upsert({
     where: { slug: "sawariya-royal-atelier" },
     update: {},
@@ -248,7 +214,7 @@ async function main() {
     },
   });
 
-  // 9. Seed Jewellery Products
+  // 8. Seed Jewellery Products
   const prod1 = await prisma.product.upsert({
     where: { slug: "royal-kundan-pendant-choker" },
     update: {},
@@ -259,7 +225,6 @@ async function main() {
       categoryId: catBridal.id,
       subCategoryId: subJadau.id,
       brandId: brandRoyal.id,
-      vendorId: vendorShop.id,
       qty: 5,
       shortDescription:
         "An ethereal bridal choker handcrafted in solid 18K yellow gold with natural uncut polki diamonds, hand-carved emerald beads, and silk adjustable dori.",
@@ -273,7 +238,6 @@ async function main() {
       offerEndDate: new Date("2026-12-31"),
       productType: ProductType.FEATURED_PRODUCT,
       status: true,
-      isApproved: true,
     },
   });
 
@@ -318,7 +282,6 @@ async function main() {
       categoryId: catRings.id,
       subCategoryId: subSolitaires.id,
       brandId: brandSurat.id,
-      vendorId: vendorShop.id,
       qty: 8,
       shortDescription:
         "GIA certified conflict-free solitaire diamond mounted on a 950 pure platinum cathedral setting with hidden diamond halo.",
@@ -329,7 +292,6 @@ async function main() {
       offerPrice: 3450,
       productType: ProductType.NEW_ARRIVAL,
       status: true,
-      isApproved: true,
     },
   });
 
@@ -343,7 +305,6 @@ async function main() {
       thumbImage: "/images/figma/bestseller-3.png",
       categoryId: catBangles.id,
       brandId: brandRoyal.id,
-      vendorId: vendorShop.id,
       qty: 4,
       shortDescription:
         "Traditional South Indian temple design handcrafted by master goldsmiths featuring Lakshmi and peacock relief work in 22K gold.",
@@ -352,7 +313,6 @@ async function main() {
       offerPrice: 1750,
       productType: ProductType.BEST_PRODUCT,
       status: true,
-      isApproved: true,
     },
   });
 
@@ -366,7 +326,6 @@ async function main() {
       thumbImage: "/images/figma/bestseller-2.png",
       categoryId: catPolki.id,
       brandId: brandRoyal.id,
-      vendorId: vendorShop.id,
       qty: 6,
       shortDescription:
         "Royal Jaipur polki work with freshwater south sea pearls and enamel meenakari detailing on the reverse.",
@@ -375,11 +334,10 @@ async function main() {
       offerPrice: 1190,
       productType: ProductType.TOP_PRODUCT,
       status: true,
-      isApproved: true,
     },
   });
 
-  // 10. Seed Flash Sale Event
+  // 9. Seed Flash Sale Event
   const flashSale = await prisma.flashSale.upsert({
     where: { id: "main-flash-sale" },
     update: {},
@@ -399,7 +357,7 @@ async function main() {
     },
   });
 
-  // 11. Seed Shipping Rules
+  // 10. Seed Shipping Rules
   await prisma.shippingRule.createMany({
     data: [
       {
@@ -420,7 +378,7 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // 12. Seed Coupons
+  // 11. Seed Coupons
   await prisma.coupon.createMany({
     data: [
       {
@@ -439,7 +397,7 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // 13. Seed General Settings
+  // 12. Seed General Settings
   await prisma.generalSetting.createMany({
     data: [
       {

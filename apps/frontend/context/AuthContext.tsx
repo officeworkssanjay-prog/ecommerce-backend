@@ -9,19 +9,13 @@ export interface User {
   email: string;
   phone?: string;
   avatar?: string;
-  role: "USER" | "VENDOR" | "ADMIN";
-  vendor?: {
-    id: string;
-    shopName: string;
-    status: boolean;
-  } | null;
+  role: "USER" | "ADMIN";
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
-  isVendor: boolean;
   isCustomer: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string; role?: string }>;
   register: (
@@ -108,7 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = user?.role === "ADMIN";
-  const isVendor = user?.role === "VENDOR";
   const isCustomer = user?.role === "USER";
 
   return (
@@ -117,7 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         isAdmin,
-        isVendor,
         isCustomer,
         login,
         register,

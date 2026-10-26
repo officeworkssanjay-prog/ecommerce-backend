@@ -81,10 +81,7 @@ export class AuthController {
 
       const { email, password } = validation.data;
 
-      const user = await prisma.user.findUnique({
-        where: { email },
-        include: { vendor: { select: { id: true, shopName: true } } },
-      });
+      const user = await prisma.user.findUnique({ where: { email } });
 
       if (!user || !user.password) {
         return res.status(401).json({
@@ -130,7 +127,6 @@ export class AuthController {
           email: user.email,
           role: user.role,
           avatar: user.avatar,
-          vendor: user.vendor,
         },
       });
     } catch (error: any) {

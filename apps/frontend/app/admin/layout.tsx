@@ -1,17 +1,15 @@
 "use client";
 
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard,
   ShieldCheck,
   ShoppingBag,
-  Store,
   FolderTree,
   Tag,
-  Wallet,
   Settings,
   ArrowLeft,
   LogOut,
@@ -22,16 +20,30 @@ const adminNavItems = [
   { name: "Executive Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Product Moderation", href: "/admin/products", icon: ShieldCheck },
   { name: "Orders & Logistics", href: "/admin/orders", icon: ShoppingBag },
-  { name: "Merchant Approvals", href: "/admin/vendors", icon: Store },
   { name: "Category Hierarchy", href: "/admin/categories", icon: FolderTree },
   { name: "Coupons & Shipping", href: "/admin/coupons", icon: Tag },
-  { name: "Vendor Payouts", href: "/admin/withdrawals", icon: Wallet },
   { name: "Platform Settings", href: "/admin/settings", icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const router = useRouter();
+  const { user, loading, isAdmin, logout } = useAuth();
+
+  // Only ADMIN accounts may see the console; everyone else is sent to login.
+  useEffect(() => {
+    if (!loading && !isAdmin) {
+      router.replace("/login");
+    }
+  }, [loading, isAdmin, router]);
+
+  if (loading || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-sm text-zinc-500">
+        Checking administrator access...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col md:flex-row">

@@ -103,14 +103,7 @@ export class CheckoutService {
         }
 
         // If product found, verify stock and decrement
-        let actualProductId = product?.id || targetId;
-        let actualVendorId = product?.vendorId;
-
-        if (!actualVendorId) {
-          // Fallback to first available vendor if vendorId missing
-          const defaultVendor = await tx.vendor.findFirst();
-          actualVendorId = defaultVendor?.id || "default-vendor";
-        }
+        const actualProductId = product?.id || targetId;
 
         if (product) {
           if (product.qty >= item.qty) {
@@ -130,7 +123,6 @@ export class CheckoutService {
           data: {
             orderId: order.id,
             productId: actualProductId,
-            vendorId: actualVendorId,
             productName: item.name,
             unitPrice: item.price,
             qty: item.qty,

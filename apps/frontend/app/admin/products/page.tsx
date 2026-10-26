@@ -30,41 +30,10 @@ interface ProductItem {
   thumbImage: string;
   shortDescription?: string;
   createdAt?: string;
-  isApproved?: boolean;
   status?: boolean;
   productType?: string;
-  vendor?: { shopName: string; email: string };
   category?: { name: string };
 }
-
-const mockPending: ProductItem[] = [
-  {
-    id: "p-101",
-    name: "18K Gold Royal Kundan Choker",
-    slug: "royal-kundan-choker",
-    price: 2450.0,
-    offerPrice: 2190.0,
-    qty: 5,
-    thumbImage: "/images/figma/bestseller-1.png",
-    shortDescription: "Handcrafted in solid 18K gold with natural uncut polki diamonds.",
-    createdAt: new Date().toISOString(),
-    vendor: { shopName: "Imperial Jaipur Kundan Atelier", email: "artisan@jaipurkundan.com" },
-    category: { name: "Necklaces" },
-  },
-  {
-    id: "p-102",
-    name: "Heritage Polki Chandbali Jhumkas",
-    slug: "heritage-polki-chandbali-jhumkas",
-    price: 1550.0,
-    offerPrice: 1350.0,
-    qty: 8,
-    thumbImage: "/images/figma/bestseller-2.png",
-    shortDescription: "Royal Jaipur polki work with freshwater pearls.",
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    vendor: { shopName: "Imperial Jaipur Kundan Atelier", email: "artisan@jaipurkundan.com" },
-    category: { name: "Earrings" },
-  },
-];
 
 const mockAllProducts: ProductItem[] = [
   {
@@ -76,9 +45,7 @@ const mockAllProducts: ProductItem[] = [
     qty: 12,
     thumbImage: "/images/figma/bestseller-1.png",
     status: true,
-    isApproved: true,
     category: { name: "Necklaces" },
-    vendor: { shopName: "Sawariya Royal Atelier", email: "admin@sawariya.com" },
   },
   {
     id: "prod-2",
@@ -89,9 +56,7 @@ const mockAllProducts: ProductItem[] = [
     qty: 15,
     thumbImage: "/images/figma/bestseller-2.png",
     status: true,
-    isApproved: true,
     category: { name: "Earrings" },
-    vendor: { shopName: "Sawariya Royal Atelier", email: "admin@sawariya.com" },
   },
   {
     id: "prod-3",
@@ -102,9 +67,7 @@ const mockAllProducts: ProductItem[] = [
     qty: 8,
     thumbImage: "/images/figma/bestseller-3.png",
     status: true,
-    isApproved: true,
     category: { name: "Bangles" },
-    vendor: { shopName: "Sawariya Royal Atelier", email: "admin@sawariya.com" },
   },
   {
     id: "prod-4",
@@ -115,18 +78,13 @@ const mockAllProducts: ProductItem[] = [
     qty: 4,
     thumbImage: "/images/figma/bestseller-4.png",
     status: true,
-    isApproved: true,
     category: { name: "Rings" },
-    vendor: { shopName: "Sawariya Royal Atelier", email: "admin@sawariya.com" },
   },
 ];
 
 export default function AdminProductsPage() {
-  const [activeTab, setActiveTab] = useState<"pending" | "catalog">("pending");
-  const [pendingProducts, setPendingProducts] = useState<ProductItem[]>(mockPending);
   const [catalogProducts, setCatalogProducts] = useState<ProductItem[]>(mockAllProducts);
   const [loading, setLoading] = useState(true);
-  const [actioningId, setActioningId] = useState<string | null>(null);
 
   // New Product Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -143,11 +101,7 @@ export default function AdminProductsPage() {
 
   async function loadData() {
     setLoading(true);
-    const [pendingRes, catalogRes] = await Promise.all([
-      withFallback<ProductItem[]>(api.get("/admin/pending-products"), mockPending),
-      withFallback<ProductItem[]>(api.get("/admin/products"), mockAllProducts),
-    ]);
-    setPendingProducts(pendingRes.data || mockPending);
+    const catalogRes = await withFallback<ProductItem[]>(api.get("/admin/products"), mockAllProducts);
     setCatalogProducts(catalogRes.data || mockAllProducts);
     setLoading(false);
   }
@@ -155,22 +109,6 @@ export default function AdminProductsPage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const handleModeration = async (id: string, isApproved: boolean) => {
-    setActioningId(id);
-    const approvedItem = pendingProducts.find((p) => p.id === id);
-
-    setPendingProducts((prev) => prev.filter((p) => p.id !== id));
-    if (isApproved && approvedItem) {
-      setCatalogProducts((prev) => [
-        { ...approvedItem, isApproved: true, status: true },
-        ...prev,
-      ]);
-    }
-
-    await api.put(`/admin/products/${id}/approval`, { isApproved });
-    setActioningId(null);
-  };
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,11 +140,9 @@ export default function AdminProductsPage() {
           qty: parseInt(formData.qty) || 0,
           thumbImage: formData.thumbImage || "/images/figma/bestseller-1.png",
           status: true,
-          isApproved: true,
           productType: formData.productType,
           category: { name: "Jewellery" },
-          vendor: { shopName: "Sawariya Royal Atelier", email: "admin@sawariya.com" },
-        };
+              };
         setCatalogProducts((prev) => [created, ...prev]);
       }
 
@@ -220,7 +156,6 @@ export default function AdminProductsPage() {
         productType: "NEW_ARRIVAL",
       });
       setIsModalOpen(false);
-      setActiveTab("catalog");
     } catch {
       setIsModalOpen(false);
     } finally {
@@ -243,7 +178,7 @@ export default function AdminProductsPage() {
             Products & Catalog Management
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            Review vendor submissions and manage your live fine jewellery catalog.
+            Manage your live fine jewellery catalog.
           </p>
         </div>
 
@@ -256,126 +191,8 @@ export default function AdminProductsPage() {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800">
-        <button
-          onClick={() => setActiveTab("pending")}
-          className={`pb-3 px-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === "pending"
-              ? "border-[#caa15e] text-[#caa15e]"
-              : "border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          <span>Moderation Queue</span>
-          {pendingProducts.length > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold">
-              {pendingProducts.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveTab("catalog")}
-          className={`pb-3 px-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors ${
-            activeTab === "catalog"
-              ? "border-[#caa15e] text-[#caa15e]"
-              : "border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
-          }`}
-        >
-          <Package className="w-4 h-4" />
-          <span>All Live Products</span>
-          <span className="px-2 py-0.5 rounded-full text-[10px] bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 font-bold">
-            {catalogProducts.length}
-          </span>
-        </button>
-      </div>
-
-      {/* TAB 1: MODERATION QUEUE */}
-      {activeTab === "pending" && (
-        <>
-          {pendingProducts.length === 0 ? (
-            <div className="p-12 text-center rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 space-y-3">
-              <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-              <h3 className="font-bold text-base text-zinc-900 dark:text-zinc-100">
-                Moderation Queue Clear
-              </h3>
-              <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-                All vendor-submitted jewellery pieces have been moderated and approved for the catalog.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {pendingProducts.map((prod) => (
-                <div
-                  key={prod.id}
-                  className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6"
-                >
-                  <div className="flex items-start space-x-4">
-                    <img
-                      src={prod.thumbImage}
-                      alt={prod.name}
-                      className="w-16 h-16 rounded-2xl object-cover border border-zinc-200 dark:border-zinc-800 shrink-0"
-                    />
-                    <div className="space-y-1">
-                      <h3 className="font-bold text-base text-zinc-900 dark:text-zinc-100">
-                        {prod.name}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
-                        {prod.vendor && (
-                          <>
-                            <span className="flex items-center space-x-1">
-                              <Store className="w-3.5 h-3.5 text-amber-500" />
-                              <span>{prod.vendor.shopName}</span>
-                            </span>
-                            <span>&bull;</span>
-                          </>
-                        )}
-                        <span className="font-bold text-zinc-900 dark:text-zinc-100">
-                          ₹{prod.price.toLocaleString()}
-                        </span>
-                        <span>&bull;</span>
-                        <span>{prod.qty} in stock</span>
-                        {prod.category && (
-                          <>
-                            <span>&bull;</span>
-                            <span className="text-zinc-400">{prod.category.name}</span>
-                          </>
-                        )}
-                      </div>
-                      <p className="text-xs text-zinc-500 line-clamp-1 pt-1">
-                        {prod.shortDescription}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-3 shrink-0">
-                    <button
-                      onClick={() => handleModeration(prod.id, false)}
-                      disabled={actioningId === prod.id}
-                      className="px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 font-semibold text-xs transition flex items-center space-x-1.5"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      <span>Reject</span>
-                    </button>
-                    <button
-                      onClick={() => handleModeration(prod.id, true)}
-                      disabled={actioningId === prod.id}
-                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition shadow-md shadow-emerald-600/20 flex items-center space-x-1.5"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Approve & Publish</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* TAB 2: ALL CATALOG PRODUCTS */}
-      {activeTab === "catalog" && (
+      {/* ALL CATALOG PRODUCTS */}
+      {(
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {catalogProducts.map((prod) => (
             <div
@@ -409,7 +226,7 @@ export default function AdminProductsPage() {
 
               <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800">
                 <span className="text-[11px] text-zinc-400">
-                  {prod.vendor?.shopName || "In-House"}
+                  In-House
                 </span>
                 <button
                   onClick={() => handleDeleteProduct(prod.id)}

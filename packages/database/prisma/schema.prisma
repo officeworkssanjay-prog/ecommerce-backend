@@ -13,7 +13,6 @@ generator client {
 
 enum Role {
   ADMIN
-  VENDOR
   USER
 }
 
@@ -37,12 +36,6 @@ enum OrderStatus {
 enum PaymentStatus {
   UNPAID
   PAID
-}
-
-enum WithdrawStatus {
-  PENDING
-  PAID
-  DECLINED
 }
 
 enum DiscountType {
@@ -70,7 +63,6 @@ model User {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  vendor           Vendor?
   addresses        UserAddress[]
   orders           Order[]
   reviews          ProductReview[]
@@ -105,76 +97,7 @@ model UserAddress {
 }
 
 // ==========================================
-// 3. VENDOR & PAYOUT DOMAIN
-// ==========================================
-
-model Vendor {
-  id               String            @id @default(uuid())
-  userId           String            @unique
-  shopName         String
-  banner           String?
-  phone            String?
-  email            String?
-  address          String?
-  description      String?           @db.Text
-  fbLink           String?
-  twLink           String?
-  instaLink        String?
-  status           Boolean           @default(false) // false = pending admin approval, true = approved
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  products         Product[]
-  orderProducts    OrderProduct[]
-  withdrawRequests WithdrawRequest[]
-
-  @@index([userId])
-  @@index([status])
-}
-
-model VendorCondition {
-  id        String   @id @default(uuid())
-  content   String   @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model WithdrawMethod {
-  id                   String            @id @default(uuid())
-  name                 String
-  minimumAmount        Float
-  maximumAmount        Float
-  withdrawChargePercent Float             @default(0)
-  description          String?           @db.Text
-  status               Boolean           @default(true)
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
-
-  requests             WithdrawRequest[]
-}
-
-model WithdrawRequest {
-  id             String         @id @default(uuid())
-  vendorId       String
-  methodId       String
-  totalAmount    Float
-  withdrawCharge Float
-  finalAmount    Float          // totalAmount - withdrawCharge
-  accountInfo    String         @db.Text
-  status         WithdrawStatus @default(PENDING)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-
-  vendor         Vendor         @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  method         WithdrawMethod @relation(fields: [methodId], references: [id], onDelete: Restrict)
-
-  @@index([vendorId])
-  @@index([status])
-}
-
-// ==========================================
-// 4. CATALOG & INVENTORY DOMAIN
+// 3. CATALOG & INVENTORY DOMAIN
 // ==========================================
 
 model Category {
@@ -242,7 +165,6 @@ model Brand {
 
 model Product {
   id               String                @id @default(uuid())
-  vendorId         String
   categoryId       String
   subCategoryId    String?
   childCategoryId  String?
@@ -261,13 +183,11 @@ model Product {
   offerEndDate     DateTime?
   productType      ProductType?
   status           Boolean               @default(true)
-  isApproved       Boolean               @default(false) // Vendor products need Admin approval
   seoTitle         String?
   seoDescription   String?               @db.Text
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
 
-  vendor           Vendor                @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   category         Category              @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   subCategory      SubCategory?          @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
   childCategory    ChildCategory?        @relation(fields: [childCategoryId], references: [id], onDelete: SetNull)
@@ -281,9 +201,7 @@ model Product {
   flashSaleProducts FlashSaleProduct[]
 
   @@index([slug])
-  @@index([vendorId])
   @@index([categoryId])
-  @@index([isApproved])
   @@index([status])
 }
 
@@ -329,7 +247,7 @@ model ProductImageGallery {
 }
 
 // ==========================================
-// 5. CHECKOUT, ORDERS & FINANCIAL SNAPSHOTS
+// 4. CHECKOUT, ORDERS & FINANCIAL SNAPSHOTS
 // ==========================================
 
 model Order {
@@ -367,7 +285,6 @@ model OrderProduct {
   id           String   @id @default(uuid())
   orderId      String
   productId    String
-  vendorId     String
   productName  String
   unitPrice    Float
   qty          Int
@@ -378,11 +295,9 @@ model OrderProduct {
 
   order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product      Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
-  vendor       Vendor   @relation(fields: [vendorId], references: [id], onDelete: Restrict)
 
   @@index([orderId])
   @@index([productId])
-  @@index([vendorId])
 }
 
 model Transaction {
@@ -431,7 +346,7 @@ model ShippingRule {
 }
 
 // ==========================================
-// 6. REAL-TIME CHAT & SOCIAL
+// 5. REAL-TIME CHAT & SOCIAL
 // ==========================================
 
 model Chat {
@@ -482,7 +397,7 @@ model Wishlist {
 }
 
 // ==========================================
-// 7. MARKETING & CMS
+// 6. MARKETING & CMS
 // ==========================================
 
 model FlashSale {
@@ -594,12 +509,12 @@ model BlogComment {
 }
 
 // ==========================================
-// 8. PLATFORM & GATEWAY SETTINGS
+// 7. PLATFORM & GATEWAY SETTINGS
 // ==========================================
 
 model GeneralSetting {
   id           String   @id @default(uuid())
-  siteName     String   @default("Multi-Vendor Marketplace")
+  siteName     String   @default("Marketplace")
   contactEmail String?
   contactPhone String?
   contactAddress String?

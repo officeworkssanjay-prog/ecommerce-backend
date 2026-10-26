@@ -1,6 +1,6 @@
-# Multi-Vendor E-Commerce Platform (Turborepo Monorepo)
+# E-Commerce Platform (Turborepo Monorepo)
 
-A high-performance, full-featured multi-tenant marketplace platform migrated from PHP/Laravel 10 to a modern TypeScript stack:
+A high-performance, full-featured e-commerce platform migrated from PHP/Laravel 10 to a modern TypeScript stack:
 - **Frontend (`apps/frontend`)**: Next.js 14/15 (App Router), Tailwind CSS, shadcn/ui, TanStack Table v8, Lucide Icons, Zustand.
 - **Backend (`apps/backend`)**: Node.js, Express, TypeScript, JWT Auth & RBAC, Zod validation, WebSockets, Payment Gateway integrations (Stripe, PayPal, Razorpay, COD).
 - **Database (`packages/database`)**: PostgreSQL with Prisma ORM, native `JSONB` for immutable checkout snapshots, 54 domain models, seeding scripts.
@@ -15,7 +15,7 @@ ecommerce-backend/
 ├── apps/
 │   ├── backend/                      # Node.js + Express API Backend
 │   │   ├── src/
-│   │   │   ├── controllers/          # Admin, Vendor, Customer, Storefront, Order controllers
+│   │   │   ├── controllers/          # Admin, Customer, Storefront, Order controllers
 │   │   │   ├── middlewares/          # Auth JWT & Role-based Access Control (RoleMiddleware)
 │   │   │   ├── routes/               # Modular Express endpoints
 │   │   │   ├── services/             # Atomic checkout, inventory decrement, order snapshotting
@@ -25,7 +25,7 @@ ecommerce-backend/
 │   │
 │   └── frontend/                     # Next.js App Router Frontend
 │       ├── src/
-│       │   ├── app/                  # (storefront), (customer), (vendor), (admin) route groups
+│       │   ├── app/                  # (storefront), (customer), (admin) route groups
 │       │   ├── components/
 │       │   │   ├── ui/               # shadcn/ui primitives (Button, Card, Table, Badge, Dialog)
 │       │   │   └── tables/           # Reusable TanStack Table (Yajra DataTable replacement)
@@ -36,11 +36,11 @@ ecommerce-backend/
 │   ├── database/                     # PostgreSQL Prisma ORM
 │   │   ├── prisma/
 │   │   │   ├── schema.prisma         # Unified schema covering all 54 domain models
-│   │   │   └── seed.ts               # Seed data for Admin, Vendor, Customer, and Settings
+│   │   │   └── seed.ts               # Seed data for Admin, Customer, and Settings
 │   │   └── src/index.ts              # Singleton PrismaClient export
 │   │
 │   └── shared-types/                 # Shared TypeScript interfaces & Zod validation
-│       └── src/                      # Auth, Order, Product, Vendor, Chat schemas
+│       └── src/                      # Auth, Order, Product, Chat schemas
 │
 ├── docs/                             # Original technical specifications and route references
 ├── turbo.json                        # Turborepo task pipeline configuration
@@ -76,14 +76,13 @@ PORT=5000
 # Push Prisma schema to PostgreSQL
 npm run db:push
 
-# Seed default Admin, Vendor, Customer, Categories & Payment Settings
+# Seed default Admin, Customer, Categories & Payment Settings
 npm run db:seed
 ```
 
 > **Default Seed Accounts:**
-> - **Admin**: `admin@gmail.com` / `password`
-> - **Vendor**: `vendor@gmail.com` / `password`
-> - **Customer**: `user@gmail.com` / `password`
+> - **Admin**: `admin@sawariyajewels.com` / `admin123`
+> - **Customer**: `collector@gmail.com` / `user123`
 
 ### 5. Launch Development Servers (Turborepo)
 ```bash
@@ -97,8 +96,7 @@ npm run dev
 
 ## 🗄️ Database Domain Highlights
 
-- **Multi-Role Tenant RBAC**: `Role` enum (`ADMIN`, `VENDOR`, `USER`) guarded by `requireRole()`.
+- **Two-Role RBAC**: `Role` enum (`ADMIN`, `USER`) guarded by `requireRole()` / `requireAdmin`. Admins own the catalogue; there is no vendor/merchant tier.
 - **Immutable JSON Snapshots**: Orders preserve frozen snapshots (`orderAddress`, `shippingMethod`, `coupon`, `variants`) directly in PostgreSQL `JSONB` columns.
 - **Atomic Checkout**: Transaction runner handles line item verification, inventory decrements (`product.qty -= item.qty`), and financial transaction records inside an atomic `prisma.$transaction()`.
 - **Logistics State Machine**: 7-stage order progression (`PENDING` -> `PROCESSED_AND_READY_TO_SHIP` -> `DROPPED_OFF` -> `SHIPPED` -> `OUT_FOR_DELIVERY` -> `DELIVERED` -> `CANCELED`).
-- **Vendor Earnings Unlocking**: Withdrawable balances are strictly unlocked only when an order is marked both **Paid** and **Delivered**.
