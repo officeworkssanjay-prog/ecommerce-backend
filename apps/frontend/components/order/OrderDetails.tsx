@@ -72,10 +72,28 @@ export function OrderDetails({ order }: { order: Order }) {
               <dd>− {formatPrice(discount)}</dd>
             </div>
           )}
+          {(order.prepaidDiscount ?? 0) > 0 && (
+            <div className="flex justify-between text-success">
+              <dt>Prepaid discount</dt>
+              <dd>− {formatPrice(order.prepaidDiscount ?? 0)}</dd>
+            </div>
+          )}
           <div className="flex justify-between">
             <dt>Shipping</dt>
             <dd className={order.shippingMethod.cost === 0 ? "font-semibold text-success" : "font-medium text-ink"}>{order.shippingMethod.cost === 0 ? "FREE" : formatPrice(order.shippingMethod.cost)}</dd>
           </div>
+          {(order.codFee ?? 0) > 0 && (
+            <div className="flex justify-between">
+              <dt>COD fee</dt>
+              <dd className="font-medium text-ink">{formatPrice(order.codFee ?? 0)}</dd>
+            </div>
+          )}
+          {(order.giftWrapFee ?? 0) > 0 && (
+            <div className="flex justify-between">
+              <dt>Gift wrap</dt>
+              <dd className="font-medium text-ink">{formatPrice(order.giftWrapFee ?? 0)}</dd>
+            </div>
+          )}
         </dl>
         <div className="mt-3 flex items-baseline justify-between border-t border-sand pt-3">
           <span className="font-serif text-lg text-ink">Total</span>

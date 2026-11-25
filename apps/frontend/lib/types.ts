@@ -126,7 +126,24 @@ export interface PricingResult {
   couponError: string | null;
   shippingRule: { id: string; name: string; type: string; cost: number } | null;
   onlinePaymentAvailable: boolean;
+  prepaidDiscount: number;
+  codFee: number;
+  giftWrap: boolean;
+  giftWrapFee: number;
 }
+
+export interface PincodeCheck {
+  configured: boolean;
+  serviceable: boolean;
+  deliveryDays: number | null;
+  codAvailable: boolean;
+  city: string | null;
+  state: string | null;
+}
+
+export interface Pincode { id: string; pincode: string; city?: string | null; state?: string | null; deliveryDays: number; codAvailable: boolean; status: boolean }
+
+export interface StockAlert { id: string; email: string; createdAt: string; notifiedAt: string | null; product: { name: string; slug: string; qty: number } }
 
 export interface CheckoutResult {
   orderId: string;
@@ -159,6 +176,10 @@ export interface Order {
   orderStatus: OrderStatus;
   orderAddress: Omit<Address, "id" | "isDefault">;
   shippingMethod: { name: string; cost: number; type?: string };
+  prepaidDiscount?: number;
+  codFee?: number;
+  giftWrap?: boolean;
+  giftWrapFee?: number;
   coupon?: { code: string; discount: number; calculatedDiscount: number; discountType: "PERCENT" | "AMOUNT" } | null;
   orderProducts: OrderLine[];
   transaction?: { transactionId: string } | null;
@@ -214,7 +235,7 @@ export interface AdminBlogComment {
 }
 export interface Subscriber { id: string; email: string; isVerified: boolean; createdAt: string }
 export interface AdminSettings {
-  general: { siteName: string; contactEmail?: string | null; contactPhone?: string | null; contactAddress?: string | null; mapUrl?: string | null; currencyName: string; currencyIcon: string; timeZone: string } | null;
+  general: { siteName: string; contactEmail?: string | null; contactPhone?: string | null; contactAddress?: string | null; mapUrl?: string | null; currencyName: string; currencyIcon: string; timeZone: string; prepaidDiscountPercent?: number; codFee?: number; giftWrapFee?: number } | null;
   email: { email: string; host: string; username: string; password: string; hasPassword: boolean; port: number; encryption: string } | null;
   pusher: { appId: string; key: string; secret: string; hasSecret: boolean; cluster: string } | null;
   paymentGateways: {

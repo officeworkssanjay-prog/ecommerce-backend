@@ -203,6 +203,7 @@ model Product {
   @@index([slug])
   @@index([categoryId])
   @@index([status])
+  stockAlerts  StockAlert[]
 }
 
 model ProductVariant {
@@ -263,6 +264,10 @@ model Order {
   paymentStatus  PaymentStatus  @default(UNPAID)
   orderStatus    OrderStatus    @default(PENDING)
   gatewayOrderId String?        // Razorpay order id, used to verify the payment signature
+  prepaidDiscount Decimal @default(0) @db.Decimal(12, 2)
+  codFee         Decimal @default(0) @db.Decimal(12, 2)
+  giftWrap       Boolean @default(false)
+  giftWrapFee    Decimal @default(0) @db.Decimal(12, 2)
 
   // Immutable JSON snapshots
   orderAddress   Json           // Full shipping & billing snapshot
@@ -531,6 +536,9 @@ model GeneralSetting {
   currencyName String   @default("USD")
   currencyIcon String   @default("$")
   timeZone     String   @default("UTC")
+  prepaidDiscountPercent Decimal @default(0) @db.Decimal(5, 2) // % off for online (prepaid) orders
+  codFee       Decimal  @default(0) @db.Decimal(12, 2)         // flat fee added to cash-on-delivery orders
+  giftWrapFee  Decimal  @default(0) @db.Decimal(12, 2)         // optional gift wrap price
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -574,4 +582,31 @@ model CodSetting {
   status    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Pincodes the store delivers to. While the table is empty, delivery is not restricted.
+model ServiceablePincode {
+  id           String   @id @default(uuid())
+  pincode      String   @unique
+  city         String?
+  state        String?
+  deliveryDays Int      @default(5)
+  codAvailable Boolean  @default(true)
+  status       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// "Notify me when back in stock" requests from buyers.
+model StockAlert {
+  id         String    @id @default(uuid())
+  productId  String
+  email      String
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, email])
+  @@index([productId])
 }

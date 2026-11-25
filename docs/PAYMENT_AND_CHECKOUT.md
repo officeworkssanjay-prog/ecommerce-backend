@@ -15,8 +15,8 @@
 
 | Method & path | Auth | Purpose |
 |---|---|---|
-| `POST /api/order/calculate-pricing` | public | Preview: `{ items, couponCode?, shippingRuleId? }` → priced lines, `subTotal`, `discount`, `shippingCost`, `finalPayable`, `couponError`, `onlinePaymentAvailable` |
-| `POST /api/order/checkout` | buyer | `{ items, addressId, paymentMethod: "COD" \| "RAZORPAY", couponCode?, shippingRuleId? }` → `{ orderId, invoiceId, paymentMethod, gateway }` |
+| `POST /api/order/calculate-pricing` | public | Preview: `{ items, couponCode?, shippingRuleId?, paymentMethod?, giftWrap? }` → priced lines, `subTotal`, `discount`, `shippingCost`, `prepaidDiscount`, `codFee`, `giftWrapFee`, `finalPayable`, `couponError`, `onlinePaymentAvailable` |
+| `POST /api/order/checkout` | buyer | `{ items, addressId, paymentMethod: "COD" \| "RAZORPAY", couponCode?, shippingRuleId?, giftWrap? }` → `{ orderId, invoiceId, paymentMethod, gateway }` |
 | `POST /api/order/payment/verify` | buyer | `{ orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature }` → marks the order PAID |
 | `POST /api/order/:id/cancel` | buyer | Cancel an own order that is still `PENDING` and unpaid |
 | `GET /api/order/user/orders` | buyer | Order history |
@@ -42,3 +42,17 @@ Currency: the amount sent to Razorpay is the order total × `RazorpaySetting.cur
 ## Order status rules
 
 `PENDING → PROCESSED_AND_READY_TO_SHIP → DROPPED_OFF → SHIPPED → OUT_FOR_DELIVERY → DELIVERED`; `CANCELED` is allowed from `PENDING`, `PROCESSED_AND_READY_TO_SHIP` and `DROPPED_OFF`. `DELIVERED` and `CANCELED` are final. Online payments cannot be marked paid by hand. Source of truth: `apps/backend/src/services/order-status.ts`.
+
+## Fees, prepaid discount and delivery areas
+
+Set by the store owner in Admin → Settings (General), stored in `GeneralSetting`, and applied by the server only:
+
+- `prepaidDiscountPercent`: percentage taken off the order (after coupon) when paying online (Razorpay).
+- `codFee`: flat fee added to cash-on-delivery orders.
+- `giftWrapFee`: price of the optional gift wrap (`giftWrap: true`).
+
+Order total = subtotal − coupon + shipping + COD fee + gift wrap − prepaid discount. Each amount is saved on the order (`prepaidDiscount`, `codFee`, `giftWrap`, `giftWrapFee`).
+
+Delivery areas: Admin → Pincodes lists the pincodes you deliver to, each with delivery days and whether COD is available. While the list is empty delivery is not restricted; once it has entries, checkout rejects other pincodes and rejects COD where it is switched off. `GET /api/storefront/pincode/:pincode` powers the storefront check.
+
+"Notify me" requests for sold-out products are stored (Admin → Stock alerts). No email is sent yet because no mail transport is configured.

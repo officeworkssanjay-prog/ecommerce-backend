@@ -27,6 +27,8 @@ Base URL: `/api` (through the web app) or `http://localhost:5000/api` (direct). 
 | GET | `/api/storefront/flash-sale` | public | **Flash sale.**  |
 | GET | `/api/storefront/categories` | public | **Categories.**  |
 | GET | `/api/storefront/brands` | public | **Brands.**  |
+| GET | `/api/storefront/pincode/:pincode` | public | **Pincode check.** `configured: false` means the store has not set delivery areas, so delivery is unrestricted. |
+| POST | `/api/storefront/products/:slug/notify` | public | **Notify me (sold-out product).** Only for products with no stock; one request per product and email. |
 | GET | `/api/storefront/shipping-rules` | public | **Shipping rules.**  |
 | GET | `/api/storefront/advertisements` | public | **Advertisements.**  |
 | GET | `/api/storefront/blogs` | public | **Blog list.**  |
@@ -131,6 +133,8 @@ Base URL: `/api` (through the web app) or `http://localhost:5000/api` (direct). 
 
 | Method | Path | Access | Notes |
 |---|---|---|---|
+| GET | `/api/admin/pincodes` | admin | **Serviceable pincodes.** POST/PUT/DELETE: { pincode (6 digits), city?, state?, deliveryDays?, codAvailable?, status? }. While the list is empty, delivery is not restricted. |
+| GET | `/api/admin/stock-alerts` | admin | **Stock alerts.** Notify-me requests from buyers. |
 | GET | `/api/admin/shipping-rules` | admin | **Shipping rules.** POST/PUT/DELETE: { name, type: flat_cost\|min_cost, minCost?, cost, status? } |
 | GET | `/api/admin/settings` | admin | **Settings.** Secrets are masked. |
 | PUT | `/api/admin/settings/general` | admin | **Update general settings.**  |

@@ -9,6 +9,8 @@ import { useCart } from "@/context/CartContext";
 import type { CartItem } from "@/context/CartContext";
 import { useFeedback } from "@/components/ui/Feedback";
 import { Button } from "@/components/ui/Button";
+import { NotifyMe } from "./NotifyMe";
+import { PincodeCheck } from "./PincodeCheck";
 import { SizeGuideModal } from "@/components/catalog/SizeGuideModal";
 import { activeVariants, discountPercent } from "@/components/catalog/pricing";
 import { cn } from "@/lib/cn";
@@ -167,6 +169,8 @@ export function ProductPurchase({ product, wishlisted, wishlistBusy, onToggleWis
           icon={<Heart className={cn("h-5 w-5", wishlisted && "fill-danger text-danger")} aria-hidden />}
         />
       </div>
+      {soldOut && <NotifyMe slug={product.slug} />}
+      <PincodeCheck />
       <p role="status" className="sr-only">
         {added ? `${product.name} added to your cart` : ""}
       </p>

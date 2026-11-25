@@ -90,6 +90,9 @@ export const PricingRequestSchema = z.object({
   items: z.array(CartItemSchema).min(1, "Your cart is empty").max(50, "Too many items in the cart"),
   couponCode,
   shippingRuleId: z.string().uuid("Invalid shipping method").optional(),
+  /** Optional in a cart preview; checkout always requires it. Drives the COD fee / prepaid discount. */
+  paymentMethod: PaymentMethodEnum.optional(),
+  giftWrap: z.boolean().optional(),
 });
 export type PricingRequest = z.infer<typeof PricingRequestSchema>;
 
@@ -106,6 +109,14 @@ export const VerifyPaymentSchema = z.object({
   razorpaySignature: z.string().trim().min(1).max(256),
 });
 export type VerifyPaymentInput = z.infer<typeof VerifyPaymentSchema>;
+
+export const PincodeParamSchema = z.object({
+  pincode: z.string().trim().regex(/^[1-9][0-9]{5}$/, "Enter a valid 6-digit pincode"),
+});
+
+export const StockAlertSchema = z.object({
+  email: z.string({ required_error: "Email is required" }).trim().toLowerCase().email("Enter a valid email address").max(254),
+});
 
 export const OrderIdParamSchema = z.object({ id: z.string().uuid("Invalid order") });
 

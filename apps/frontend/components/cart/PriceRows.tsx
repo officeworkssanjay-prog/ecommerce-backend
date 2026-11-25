@@ -26,10 +26,28 @@ export function PriceRows({ pricing, loading }: { pricing: PricingResult | null;
             <dd>− {formatPrice(pricing.discount)}</dd>
           </div>
         )}
+        {pricing.prepaidDiscount > 0 && (
+          <div className="flex justify-between text-success">
+            <dt>Prepaid discount</dt>
+            <dd>− {formatPrice(pricing.prepaidDiscount)}</dd>
+          </div>
+        )}
         <div className="flex justify-between">
           <dt>Shipping{pricing.shippingRule ? ` · ${pricing.shippingRule.name}` : ""}</dt>
           <dd className={pricing.shippingCost === 0 ? "font-semibold text-success" : "font-medium text-ink"}>{pricing.shippingCost === 0 ? "FREE" : formatPrice(pricing.shippingCost)}</dd>
         </div>
+        {pricing.codFee > 0 && (
+          <div className="flex justify-between">
+            <dt>COD fee</dt>
+            <dd className="font-medium text-ink">{formatPrice(pricing.codFee)}</dd>
+          </div>
+        )}
+        {pricing.giftWrapFee > 0 && (
+          <div className="flex justify-between">
+            <dt>Gift wrap</dt>
+            <dd className="font-medium text-ink">{formatPrice(pricing.giftWrapFee)}</dd>
+          </div>
+        )}
       </dl>
       <div className="mt-3 flex items-baseline justify-between border-t border-sand pt-3">
         <span className="font-serif text-lg text-ink">Total</span>

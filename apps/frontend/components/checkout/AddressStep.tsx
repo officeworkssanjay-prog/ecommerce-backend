@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { ErrorState, PageLoader } from "@/components/ui/States";
 import { useFeedback } from "@/components/ui/Feedback";
 import { cn } from "@/lib/cn";
+import { PincodeNote } from "@/components/pincode/PincodeNote";
+import type { PincodeState } from "@/components/pincode/usePincode";
 
 interface Props {
   addresses: Address[] | null;
@@ -20,11 +22,13 @@ interface Props {
   onContinue: () => void;
   userName?: string;
   userEmail?: string;
+  /** Delivery check for the selected saved address. */
+  pincode?: PincodeState;
 }
 
 const MAX_ADDRESSES = 10;
 
-export function AddressStep({ addresses, loading, error, reload, selectedId, onSelect, onContinue, userName, userEmail }: Props) {
+export function AddressStep({ addresses, loading, error, reload, selectedId, onSelect, onContinue, userName, userEmail, pincode }: Props) {
   const { toast } = useFeedback();
   const [adding, setAdding] = useState(false);
 
@@ -77,6 +81,8 @@ export function AddressStep({ addresses, loading, error, reload, selectedId, onS
         </div>
       )}
 
+      {!showForm && pincode && <PincodeNote state={pincode} />}
+
       {showForm ? (
         <div className="rounded-md border border-sand bg-white p-4">
           <h3 className="mb-3 font-serif text-lg text-ink">{list.length === 0 ? "Add a delivery address" : "New address"}</h3>
@@ -86,6 +92,7 @@ export function AddressStep({ addresses, loading, error, reload, selectedId, onS
             allowDefault={list.length > 0}
             submitLabel="Save & deliver here"
             defaults={{ name: userName ?? "", email: userEmail ?? "" }}
+            checkPincode
           />
         </div>
       ) : (

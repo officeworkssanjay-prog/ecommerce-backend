@@ -34,6 +34,9 @@ export function GeneralSection({ value, onSaved }: { value: AdminSettings["gener
       currencyName: value?.currencyName ?? "INR",
       currencyIcon: value?.currencyIcon ?? "₹",
       timeZone: value?.timeZone ?? "Asia/Kolkata",
+      prepaidDiscountPercent: value?.prepaidDiscountPercent ?? 0,
+      codFee: value?.codFee ?? 0,
+      giftWrapFee: value?.giftWrapFee ?? 0,
     },
   });
 
@@ -49,7 +52,7 @@ export function GeneralSection({ value, onSaved }: { value: AdminSettings["gener
   });
 
   return (
-    <SettingsCard title="General" description="Store name and contact details." onSubmit={submit} saving={isSubmitting} error={formError}>
+    <SettingsCard title="General" description="Store name, contact details and order fees." onSubmit={submit} saving={isSubmitting} error={formError}>
       <Input label="Site name" required className="sm:col-span-2" error={errors.siteName?.message} {...register("siteName")} />
       <Input label="Contact email" type="email" error={errors.contactEmail?.message} {...register("contactEmail")} />
       <Input label="Contact phone" type="tel" error={errors.contactPhone?.message} {...register("contactPhone")} />
@@ -58,6 +61,9 @@ export function GeneralSection({ value, onSaved }: { value: AdminSettings["gener
       <Input label="Currency code" required hint="3 letters, e.g. INR" error={errors.currencyName?.message} {...register("currencyName")} />
       <Input label="Currency symbol" required error={errors.currencyIcon?.message} {...register("currencyIcon")} />
       <Input label="Time zone" required hint="e.g. Asia/Kolkata" error={errors.timeZone?.message} {...register("timeZone")} />
+      <Input label="Prepaid discount (%)" type="number" step="0.01" min="0" max="100" hint="Taken off the order when paid online. 0 for none." error={errors.prepaidDiscountPercent?.message} {...register("prepaidDiscountPercent")} />
+      <Input label="COD fee" type="number" step="0.01" min="0" hint="Added to cash on delivery orders. 0 for none." error={errors.codFee?.message} {...register("codFee")} />
+      <Input label="Gift wrap fee" type="number" step="0.01" min="0" hint="Charged when a customer adds gift wrap. 0 hides the option." error={errors.giftWrapFee?.message} {...register("giftWrapFee")} />
     </SettingsCard>
   );
 }

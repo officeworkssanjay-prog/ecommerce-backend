@@ -21,16 +21,16 @@ const columns: { title: string; links: FooterLink[] }[] = [
       { label: "New Arrivals", href: "/products?sort=newest" },
       { label: "Bestsellers", href: "/products?sort=popular" },
       { label: "Sale", href: "/products?sale=true" },
-      { label: "Gift Cards" },
+      { label: "Gift Cards", href: "/gift-cards" },
     ],
   },
   {
     title: "Help",
-    links: [{ label: "Track Order", href: "/order-track" }, { label: "Returns" }, { label: "Shipping" }, { label: "Jewellery Care" }, { label: "FAQs" }],
+    links: [{ label: "Track Order", href: "/order-track" }, { label: "Returns", href: "/returns" }, { label: "Shipping", href: "/shipping" }, { label: "Jewellery Care", href: "/jewellery-care" }, { label: "FAQs", href: "/faqs" }],
   },
   {
     title: "Company",
-    links: [{ label: "Our Story", href: "/about" }, { label: "Contact", href: "/contact" }, { label: "Careers" }, { label: "Privacy" }, { label: "Terms" }],
+    links: [{ label: "Our Story", href: "/about" }, { label: "Contact", href: "/contact" }, { label: "Careers", href: "/careers" }, { label: "Privacy", href: "/privacy" }, { label: "Terms", href: "/terms" }],
   },
 ];
 

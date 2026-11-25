@@ -5,6 +5,8 @@ import {
   ContactSchema,
   IdParamSchema,
   NewsletterSchema,
+  PincodeParamSchema,
+  StockAlertSchema,
   ProductFilterSchema,
   SlugParamSchema,
 } from "@ecommerce/shared-types";
@@ -23,6 +25,8 @@ router.get("/products/:slug", validate({ params: SlugParamSchema }), asyncHandle
 router.get("/flash-sale", asyncHandler(StorefrontController.getFlashSale));
 router.get("/categories", asyncHandler(StorefrontController.getCategories));
 router.get("/brands", asyncHandler(StorefrontController.getBrands));
+router.get("/pincode/:pincode", validate({ params: PincodeParamSchema }), asyncHandler(StorefrontController.checkPincode));
+router.post("/products/:slug/notify", validate({ params: SlugParamSchema, body: StockAlertSchema }), asyncHandler(StorefrontController.createStockAlert));
 router.get("/shipping-rules", asyncHandler(StorefrontController.getShippingRules));
 
 // Blog & CMS
