@@ -1,116 +1,142 @@
 "use client";
 
-import React, { ReactNode, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 import {
-  LayoutDashboard,
-  ShieldCheck,
-  ShoppingBag,
+  BadgePercent,
+  BookOpen,
+  Boxes,
   FolderTree,
-  Tag,
+  Gem,
+  Image as ImageIcon,
+  Inbox,
+  LayoutDashboard,
+  Mail,
+  Megaphone,
+  Menu,
+  MessageSquare,
+  Package,
   Settings,
-  ArrowLeft,
-  LogOut,
-  Sliders,
+  ShoppingBag,
+  Star,
+  Tags,
+  Truck,
+  Users,
+  X,
+  Zap,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { PageLoader } from "@/components/ui/States";
+import { cn } from "@/lib/cn";
 
-const adminNavItems = [
-  { name: "Executive Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { name: "Product Moderation", href: "/admin/products", icon: ShieldCheck },
-  { name: "Orders & Logistics", href: "/admin/orders", icon: ShoppingBag },
-  { name: "Category Hierarchy", href: "/admin/categories", icon: FolderTree },
-  { name: "Coupons & Shipping", href: "/admin/coupons", icon: Tag },
-  { name: "Platform Settings", href: "/admin/settings", icon: Settings },
+const NAV = [
+  { group: "Overview", items: [{ href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard }] },
+  {
+    group: "Sales",
+    items: [
+      { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+      { href: "/admin/users", label: "Customers", icon: Users },
+      { href: "/admin/reviews", label: "Reviews", icon: Star },
+    ],
+  },
+  {
+    group: "Catalogue",
+    items: [
+      { href: "/admin/products", label: "Products", icon: Package },
+      { href: "/admin/categories", label: "Categories", icon: FolderTree },
+      { href: "/admin/brands", label: "Brands", icon: Tags },
+    ],
+  },
+  {
+    group: "Marketing",
+    items: [
+      { href: "/admin/coupons", label: "Coupons", icon: BadgePercent },
+      { href: "/admin/flash-sale", label: "Flash sale", icon: Zap },
+      { href: "/admin/sliders", label: "Hero sliders", icon: ImageIcon },
+      { href: "/admin/advertisements", label: "Banners", icon: Megaphone },
+      { href: "/admin/subscribers", label: "Newsletter", icon: Mail },
+    ],
+  },
+  {
+    group: "Content",
+    items: [
+      { href: "/admin/blogs", label: "Blog posts", icon: BookOpen },
+      { href: "/admin/comments", label: "Comments", icon: MessageSquare },
+      { href: "/admin/messages", label: "Messages", icon: Inbox },
+    ],
+  },
+  {
+    group: "Store",
+    items: [
+      { href: "/admin/shipping", label: "Shipping", icon: Truck },
+      { href: "/admin/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { user, loading, isAdmin } = useAuth();
   const router = useRouter();
-  const { user, loading, isAdmin, logout } = useAuth();
+  const pathname = usePathname();
+  // The mobile menu is "open for" one path, so navigating anywhere closes it without an effect.
+  const [openFor, setOpenFor] = useState<string | null>(null);
+  const open = openFor === pathname;
 
-  // Only ADMIN accounts may see the console; everyone else is sent to login.
+  // proxy.ts already blocks non-admins; this covers a session that expires while the page is open.
   useEffect(() => {
-    if (!loading && !isAdmin) {
-      router.replace("/login");
-    }
-  }, [loading, isAdmin, router]);
+    if (!loading && !isAdmin) router.replace(user ? "/" : `/login?next=${encodeURIComponent(pathname)}`);
+  }, [loading, isAdmin, user, router, pathname]);
 
-  if (loading || !isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-sm text-zinc-500">
-        Checking administrator access...
-      </div>
-    );
-  }
+  if (loading || !isAdmin) return <PageLoader label="Checking your access…" />;
 
-  return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col md:flex-row">
-      {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between shrink-0 p-5">
-        <div className="space-y-6">
-          {/* Brand & Admin Badge */}
-          <div className="flex items-center space-x-3 pb-5 border-b border-zinc-100 dark:border-zinc-800">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow-md shadow-purple-500/20">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 leading-tight">
-                Admin Console
-              </h2>
-              <span className="inline-flex items-center px-2 py-0.5 mt-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
-                Super Administrator
-              </span>
-            </div>
-          </div>
-
-          {/* Nav links */}
-          <nav className="space-y-1">
-            {adminNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
+  const nav = (
+    <nav aria-label="Admin" className="flex flex-col gap-5">
+      {NAV.map((section) => (
+        <div key={section.group}>
+          <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-widest text-gold-light/70">{section.group}</p>
+          <ul className="flex flex-col gap-0.5">
+            {section.items.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? "bg-purple-600 text-white shadow-md shadow-purple-600/20"
-                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
-                  }`}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.name}</span>
-                </Link>
+                <li key={href}>
+                  <Link
+                    href={href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn("flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors", active ? "bg-gold text-ink-deep font-semibold" : "text-cream/80 hover:bg-ink-soft")}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden />
+                    {label}
+                  </Link>
+                </li>
               );
             })}
-          </nav>
+          </ul>
         </div>
+      ))}
+    </nav>
+  );
 
-        {/* Footer actions */}
-        <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
-          <Link
-            href="/"
-            className="flex items-center space-x-3 px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Marketplace Home</span>
-          </Link>
-          <button
-            onClick={() => logout()}
-            className="w-full flex items-center space-x-3 px-3.5 py-2 rounded-xl text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
-          </button>
-        </div>
+  return (
+    <div className="flex flex-1 flex-col lg:flex-row">
+      <aside className="hidden w-60 shrink-0 bg-ink-deep px-3 py-6 lg:block">
+        <p className="mb-6 flex items-center gap-2 px-3 font-serif text-lg text-gold-light">
+          <Gem className="h-5 w-5" aria-hidden /> Store admin
+        </p>
+        {nav}
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto max-w-7xl mx-auto w-full">
-        {children}
-      </main>
+      <div className="flex items-center justify-between bg-ink-deep px-4 py-3 text-cream lg:hidden">
+        <span className="flex items-center gap-2 font-serif text-lg text-gold-light">
+          <Boxes className="h-5 w-5" aria-hidden /> Store admin
+        </span>
+        <button type="button" onClick={() => setOpenFor(open ? null : pathname)} aria-expanded={open} aria-label="Toggle admin menu" className="rounded p-1.5 hover:bg-ink-soft">
+          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
+      {open && <div className="bg-ink-deep px-3 pb-5 lg:hidden">{nav}</div>}
+
+      <div className="min-w-0 flex-1 bg-cream px-4 py-6 sm:px-8 sm:py-8">{children}</div>
     </div>
   );
 }

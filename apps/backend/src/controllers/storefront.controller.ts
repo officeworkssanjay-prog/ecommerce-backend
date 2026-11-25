@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import { prisma, Prisma } from "@ecommerce/database";
-import { ProductFilterSchema } from "@ecommerce/shared-types";
+import crypto from "crypto";
+import { ProductFilterInput } from "@ecommerce/shared-types";
+import { env } from "../config/env";
+import { AppError } from "../utils/errors";
 
 export class StorefrontController {
   /**
@@ -8,7 +11,7 @@ export class StorefrontController {
    */
   static async getHomeData(req: Request, res: Response) {
     try {
-      const [sliders, categories, flashSale, brands, newArrivals, featuredProducts] =
+      const [sliders, categories, flashSale, brands, newArrivals, featuredProducts, bestSellers] =
         await Promise.all([
           prisma.slider.findMany({
             where: { status: true },
@@ -56,6 +59,12 @@ export class StorefrontController {
             include: { variants: { include: { items: true } } },
             take: 8,
           }),
+          prisma.product.findMany({
+            where: { status: true, productType: "BEST_PRODUCT" },
+            include: { variants: { include: { items: true } }, category: { select: { name: true, slug: true } } },
+            take: 4,
+            orderBy: { createdAt: "desc" },
+          }),
         ]);
 
       return res.json({
@@ -67,10 +76,11 @@ export class StorefrontController {
           brands,
           newArrivals,
           featuredProducts,
+          bestSellers,
         },
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      throw error;
     }
   }
 
@@ -79,8 +89,8 @@ export class StorefrontController {
    */
   static async getProducts(req: Request, res: Response) {
     try {
-      const query = ProductFilterSchema.parse(req.query);
-      const { page, limit, sort, search, category, brand, minPrice, maxPrice } = query;
+      const query = req.query as unknown as ProductFilterInput; // validated by the route
+      const { page, limit, sort, search, category, subCategory, childCategory, brand, minPrice, maxPrice, sale, size } = query;
 
       const where: Prisma.ProductWhereInput = {
         status: true,
@@ -96,6 +106,8 @@ export class StorefrontController {
       if (category) {
         where.category = { slug: category };
       }
+      if (subCategory) where.subCategory = { slug: subCategory };
+      if (childCategory) where.childCategory = { slug: childCategory };
 
       if (brand) {
         where.brand = { slug: brand };
@@ -107,9 +119,26 @@ export class StorefrontController {
         if (maxPrice !== undefined) where.price.lte = maxPrice;
       }
 
-      let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: "desc" };
-      if (sort === "price_low") orderBy = { price: "asc" };
-      if (sort === "price_high") orderBy = { price: "desc" };
+      // "Sale": a valid offer price right now
+      if (sale) {
+        const now = new Date();
+        where.offerPrice = { not: null };
+        where.AND = [
+          { OR: [{ offerStartDate: null }, { offerStartDate: { lte: now } }] },
+          { OR: [{ offerEndDate: null }, { offerEndDate: { gte: now } }] },
+        ];
+      }
+
+      // e.g. bangle size "2.4": products offering that option in any variant group
+      if (size) {
+        where.variants = { some: { status: true, items: { some: { status: true, name: size } } } };
+      }
+
+      let orderBy: Prisma.ProductOrderByWithRelationInput[] = [{ createdAt: "desc" }];
+      if (sort === "price_low") orderBy = [{ price: "asc" }];
+      if (sort === "price_high") orderBy = [{ price: "desc" }];
+      // "recommended" / "popular" = most ordered first, newest as the tie-breaker
+      if (sort === "recommended" || sort === "popular") orderBy = [{ orderProducts: { _count: "desc" } }, { createdAt: "desc" }];
 
       const [total, products] = await Promise.all([
         prisma.product.count({ where }),
@@ -139,7 +168,7 @@ export class StorefrontController {
         },
       });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      throw error;
     }
   }
 
@@ -176,7 +205,7 @@ export class StorefrontController {
 
       return res.json({ success: true, data: product });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      throw error;
     }
   }
 
@@ -205,7 +234,7 @@ export class StorefrontController {
 
       return res.json({ success: true, data: flashSale });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      throw error;
     }
   }
 
@@ -227,7 +256,7 @@ export class StorefrontController {
       });
       return res.json({ success: true, data: categories });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      throw error;
     }
   }
 
@@ -242,7 +271,7 @@ export class StorefrontController {
       });
       return res.json({ success: true, data: brands });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      throw error;
     }
   }
 
@@ -250,50 +279,37 @@ export class StorefrontController {
    * Blog articles list with pagination & category filter
    */
   static async getBlogs(req: Request, res: Response) {
-    try {
-      const { category, page = "1", limit = "10" } = req.query;
-      const pageNum = Math.max(1, parseInt(page as string) || 1);
-      const limitNum = Math.min(50, Math.max(1, parseInt(limit as string) || 10));
+    const { category, page, limit } = req.query as unknown as { category?: string; page: number; limit: number };
 
-      const where: any = { status: true };
-      if (category) {
-        where.category = { slug: String(category) };
-      }
+    const where: Prisma.BlogWhereInput = { status: true };
+    if (category) where.category = { slug: category };
 
-      const [total, blogs, categories] = await Promise.all([
-        prisma.blog.count({ where }),
-        prisma.blog.findMany({
-          where,
-          skip: (pageNum - 1) * limitNum,
-          take: limitNum,
-          orderBy: { createdAt: "desc" },
-          include: {
-            category: { select: { id: true, name: true, slug: true } },
-            _count: { select: { comments: { where: { status: true } } } },
-          },
-        }),
-        prisma.blogCategory.findMany({
-          where: { status: true },
-          include: { _count: { select: { blogs: { where: { status: true } } } } },
-        }),
-      ]);
-
-      return res.json({
-        success: true,
-        data: {
-          blogs,
-          categories,
-          pagination: {
-            page: pageNum,
-            limit: limitNum,
-            total,
-            totalPages: Math.ceil(total / limitNum),
-          },
+    const [total, blogs, categories] = await Promise.all([
+      prisma.blog.count({ where }),
+      prisma.blog.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          category: { select: { id: true, name: true, slug: true } },
+          _count: { select: { comments: { where: { status: true } } } },
         },
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+      }),
+      prisma.blogCategory.findMany({
+        where: { status: true },
+        include: { _count: { select: { blogs: { where: { status: true } } } } },
+      }),
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        blogs,
+        categories,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      },
+    });
   }
 
   /**
@@ -320,7 +336,7 @@ export class StorefrontController {
 
       return res.json({ success: true, data: blog });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      throw error;
     }
   }
 
@@ -328,98 +344,57 @@ export class StorefrontController {
    * Submit comment on a blog post
    */
   static async addBlogComment(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const { comment } = req.body;
-      const userId = req.user!.id;
+    const { id } = req.params;
+    const { comment } = req.body as { comment: string };
 
-      if (!comment) {
-        return res.status(400).json({ success: false, message: "Comment cannot be empty" });
-      }
+    const blog = await prisma.blog.findFirst({ where: { id, status: true }, select: { id: true } });
+    if (!blog) throw AppError.notFound("Blog article not found");
 
-      const newComment = await prisma.blogComment.create({
-        data: {
-          blogId: id,
-          userId,
-          comment,
-          status: true,
-        },
-        include: { user: { select: { name: true, avatar: true } } },
-      });
+    const newComment = await prisma.blogComment.create({
+      data: { blogId: id, userId: req.user!.id, comment, status: true },
+      include: { user: { select: { name: true, avatar: true } } },
+    });
 
-      return res.status(201).json({
-        success: true,
-        message: "Comment posted successfully",
-        data: newComment,
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    return res.status(201).json({ success: true, message: "Comment posted successfully", data: newComment });
   }
 
   /**
    * Newsletter double opt-in subscribe
    */
   static async subscribeNewsletter(req: Request, res: Response) {
-    try {
-      const { email } = req.body;
-      if (!email || !email.includes("@")) {
-        return res.status(400).json({ success: false, message: "Valid email address required" });
-      }
+    const { email } = req.body as { email: string };
 
-      const existing = await prisma.newsletterSubscriber.findUnique({ where: { email } });
-      if (existing) {
-        if (existing.isVerified) {
-          return res.status(400).json({ success: false, message: "Email is already subscribed" });
-        }
-        return res.json({
-          success: true,
-          message: "A verification token was already issued for this address",
-        });
-      }
-
-      const token = `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      await prisma.newsletterSubscriber.create({
-        data: {
-          email,
-          token,
-          isVerified: false,
-        },
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: "Subscribed! Please verify using the token sent to your email.",
-        verificationToken: token,
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+    const existing = await prisma.newsletterSubscriber.findUnique({ where: { email } });
+    if (existing?.isVerified) throw AppError.conflict("Email is already subscribed");
+    if (existing) {
+      return res.json({ success: true, message: "A verification link was already sent to this address" });
     }
+
+    const token = crypto.randomBytes(24).toString("hex");
+    await prisma.newsletterSubscriber.create({ data: { email, token, isVerified: false } });
+
+    // No mail transport is wired up yet, so the token is only exposed outside production (for testing).
+    return res.status(201).json({
+      success: true,
+      message: "Subscribed! Please verify using the link sent to your email.",
+      ...(env.isProduction ? {} : { verificationToken: token }),
+    });
   }
 
   /**
    * Verify newsletter subscriber token
    */
   static async verifyNewsletter(req: Request, res: Response) {
-    try {
-      const { token } = req.params;
-      const subscriber = await prisma.newsletterSubscriber.findFirst({
-        where: { token },
-      });
+    const { token } = req.params;
+    const subscriber = await prisma.newsletterSubscriber.findFirst({ where: { token } });
+    if (!subscriber) throw AppError.notFound("Invalid or expired token");
 
-      if (!subscriber) {
-        return res.status(404).json({ success: false, message: "Invalid or expired token" });
-      }
+    await prisma.newsletterSubscriber.update({
+      where: { id: subscriber.id },
+      data: { isVerified: true, token: null },
+    });
 
-      await prisma.newsletterSubscriber.update({
-        where: { id: subscriber.id },
-        data: { isVerified: true, token: null },
-      });
-
-      return res.json({ success: true, message: "Newsletter subscription verified!" });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    return res.json({ success: true, message: "Newsletter subscription verified!" });
   }
 
   /**
@@ -430,7 +405,7 @@ export class StorefrontController {
       const ads = await prisma.advertisement.findMany();
       return res.json({ success: true, data: ads });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      throw error;
     }
   }
 
@@ -438,22 +413,13 @@ export class StorefrontController {
    * Contact inquiry form submission
    */
   static async handleContactInquiry(req: Request, res: Response) {
-    try {
-      const { name, email, subject, message } = req.body;
-      if (!name || !email || !message) {
-        return res.status(400).json({
-          success: false,
-          message: "Name, email, and message are required",
-        });
-      }
-
-      return res.json({
-        success: true,
-        message: "Thank you! Your message has been received and our team will get back to you shortly.",
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    const { name, email, subject, message } = req.body as { name: string; email: string; subject?: string; message: string };
+    // Stored for the admin inbox (Admin → Messages). Input is validated by the route.
+    await prisma.contactMessage.create({ data: { name, email, subject: subject || null, message } });
+    return res.json({
+      success: true,
+      message: "Thank you! Your message has been received and our team will get back to you shortly.",
+    });
   }
 
   /**
@@ -467,7 +433,7 @@ export class StorefrontController {
       });
       return res.json({ success: true, data: rules });
     } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+      throw error;
     }
   }
 }

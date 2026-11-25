@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PhoneSchema } from "./auth";
 
 export const OrderStatusEnum = z.enum([
   "PENDING",
@@ -14,17 +15,29 @@ export type OrderStatusType = z.infer<typeof OrderStatusEnum>;
 export const PaymentStatusEnum = z.enum(["UNPAID", "PAID"]);
 export type PaymentStatusType = z.infer<typeof PaymentStatusEnum>;
 
-export const AddressSnapshotSchema = z.object({
-  name: z.string(),
-  email: z.string().email(),
-  phone: z.string(),
-  country: z.string(),
-  state: z.string(),
-  city: z.string(),
-  zipCode: z.string(),
-  address: z.string(),
-  addressType: z.string().default("home"),
+/** Online payments go through Razorpay; everything else is cash on delivery. */
+export const PaymentMethodEnum = z.enum(["COD", "RAZORPAY"]);
+export type PaymentMethodType = z.infer<typeof PaymentMethodEnum>;
+
+// ---------- Addresses ----------
+export const AddressInputSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(80),
+  email: z.string().trim().toLowerCase().email("Invalid email address").max(254),
+  phone: PhoneSchema,
+  country: z.string().trim().min(2, "Country is required").max(60),
+  state: z.string().trim().min(2, "State is required").max(60),
+  city: z.string().trim().min(2, "City is required").max(60),
+  zipCode: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9\s-]{2,9}$/, "Enter a valid postal code"),
+  address: z.string().trim().min(5, "Address must be at least 5 characters").max(200),
+  addressType: z.enum(["home", "office"]).default("home"),
+  isDefault: z.boolean().optional(),
 });
+export type AddressInput = z.infer<typeof AddressInputSchema>;
+
+export const AddressSnapshotSchema = AddressInputSchema.omit({ isDefault: true });
 export type AddressSnapshot = z.infer<typeof AddressSnapshotSchema>;
 
 export const ShippingSnapshotSchema = z.object({
@@ -44,22 +57,61 @@ export const CouponSnapshotSchema = z.object({
 });
 export type CouponSnapshot = z.infer<typeof CouponSnapshotSchema>;
 
-export const CartItemVariantSelectionSchema = z.record(
-  z.string(), // e.g. "Size"
+// ---------- Cart / checkout ----------
+/** One selected option per variant. Accepts an id or `{ id }` (older cart format). */
+const VariantSelectionSchema = z.record(
+  z.string(),
+  z.union([z.string().uuid("Invalid option"), z.object({ id: z.string().uuid("Invalid option") }).passthrough()])
+);
+
+/**
+ * A cart line as sent by the client. Only identifiers and quantity are accepted:
+ * prices, names and totals are always recalculated on the server, and any such
+ * fields in the payload are stripped.
+ */
+export const CartItemSchema = z.preprocess(
+  (value) => {
+    if (value && typeof value === "object" && !("productId" in value) && "id" in value) {
+      return { ...(value as Record<string, unknown>), productId: (value as { id: unknown }).id };
+    }
+    return value;
+  },
   z.object({
-    id: z.string(),
-    name: z.string(), // e.g. "XL"
-    price: z.number(), // extra modifier
+    productId: z.string({ required_error: "Product is required" }).uuid("Invalid product"),
+    qty: z.coerce.number({ invalid_type_error: "Quantity must be a number" }).int("Quantity must be a whole number").min(1, "Quantity must be at least 1").max(20, "You can order at most 20 of one item"),
+    variants: VariantSelectionSchema.optional(),
   })
 );
-export type CartItemVariantSelection = z.infer<typeof CartItemVariantSelectionSchema>;
+export type CartItemInput = z.infer<typeof CartItemSchema>;
 
-export const CreateOrderSchema = z.object({
-  addressId: z.string().uuid(),
-  shippingRuleId: z.string().uuid(),
-  couponCode: z.string().optional(),
-  paymentMethod: z.enum(["STRIPE", "PAYPAL", "RAZORPAY", "COD"]),
-  stripeToken: z.string().optional(),
-  razorpayPaymentId: z.string().optional(),
+const couponCode = z.string().trim().min(1).max(40).optional().or(z.literal("").transform(() => undefined));
+
+export const PricingRequestSchema = z.object({
+  items: z.array(CartItemSchema).min(1, "Your cart is empty").max(50, "Too many items in the cart"),
+  couponCode,
+  shippingRuleId: z.string().uuid("Invalid shipping method").optional(),
 });
-export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;
+export type PricingRequest = z.infer<typeof PricingRequestSchema>;
+
+export const CheckoutSchema = PricingRequestSchema.extend({
+  addressId: z.string({ required_error: "Please select a delivery address" }).uuid("Please select a delivery address"),
+  paymentMethod: PaymentMethodEnum,
+});
+export type CheckoutInput = z.infer<typeof CheckoutSchema>;
+
+export const VerifyPaymentSchema = z.object({
+  orderId: z.string().uuid("Invalid order"),
+  razorpayOrderId: z.string().trim().min(1).max(100),
+  razorpayPaymentId: z.string().trim().min(1).max(100),
+  razorpaySignature: z.string().trim().min(1).max(256),
+});
+export type VerifyPaymentInput = z.infer<typeof VerifyPaymentSchema>;
+
+export const OrderIdParamSchema = z.object({ id: z.string().uuid("Invalid order") });
+
+export const TrackOrderParamsSchema = z.object({
+  invoiceId: z.coerce.number().int().positive("Invalid invoice number"),
+});
+export const TrackOrderQuerySchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter the email used for the order"),
+});

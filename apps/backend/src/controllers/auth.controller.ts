@@ -1,148 +1,86 @@
-import { Request, Response } from "express";
+import { CookieOptions, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma, Role } from "@ecommerce/database";
-import { LoginSchema, RegisterSchema } from "@ecommerce/shared-types";
+import { LoginInput, RegisterInput } from "@ecommerce/shared-types";
+import { env } from "../config/env";
+import { AppError } from "../utils/errors";
 
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-jwt-key-change-in-prod";
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
+const cookieOptions: CookieOptions = {
+  httpOnly: true,
+  secure: env.isProduction,
+  sameSite: "lax",
+  path: "/",
+};
+
+function issueSession(res: Response, user: { id: string; email: string; role: string }) {
+  const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+  res.cookie("auth_token", token, { ...cookieOptions, maxAge: SEVEN_DAYS_MS });
+  return token;
+}
+
+// Compared against when the email is unknown so response time doesn't reveal which emails exist.
+const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", 10);
+
+/** Handlers run behind `validate()` + `asyncHandler()`, so req.body is already parsed. */
 export class AuthController {
   static async register(req: Request, res: Response) {
-    try {
-      const validation = RegisterSchema.safeParse(req.body);
-      if (!validation.success) {
-        const firstError = validation.error.errors[0]?.message || "Validation error";
-        return res.status(400).json({
-          success: false,
-          message: firstError,
-          errors: validation.error.format(),
-        });
-      }
+    const { name, email, password } = req.body as RegisterInput;
 
-      const { name, email, password } = validation.data;
-
-      const existing = await prisma.user.findUnique({ where: { email } });
-      if (existing) {
-        return res.status(400).json({
-          success: false,
-          message: "Email address is already registered",
-        });
-      }
-
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-
-      const user = await prisma.user.create({
-        data: {
-          name,
-          email,
-          password: hashedPassword,
-          role: Role.USER,
-        },
-      });
-
-      const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
-        JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-
-      res.cookie("auth_token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: "Registration successful",
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw AppError.conflict("Email address is already registered");
     }
-  }
 
-  static async login(req: Request, res: Response) {
-    try {
-      const validation = LoginSchema.safeParse(req.body);
-      if (!validation.success) {
-        return res.status(400).json({
-          success: false,
-          errors: validation.error.format(),
-        });
-      }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: { name, email, password: hashedPassword, role: Role.USER },
+    });
 
-      const { email, password } = validation.data;
+    const token = issueSession(res, user);
 
-      const user = await prisma.user.findUnique({ where: { email } });
-
-      if (!user || !user.password) {
-        return res.status(401).json({
-          success: false,
-          message: "Invalid email or password",
-        });
-      }
-
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(401).json({
-          success: false,
-          message: "Invalid email or password",
-        });
-      }
-
-      if (!user.status) {
-        return res.status(403).json({
-          success: false,
-          message: "Your account has been deactivated. Please contact support.",
-        });
-      }
-
-      const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
-        JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-
-      res.cookie("auth_token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
-      return res.json({
-        success: true,
-        message: "Login successful",
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          avatar: user.avatar,
-        },
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  static async me(req: Request, res: Response) {
-    return res.json({
+    return res.status(201).json({
       success: true,
-      user: req.user,
+      message: "Registration successful",
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
     });
   }
 
-  static async logout(req: Request, res: Response) {
-    res.clearCookie("auth_token");
+  static async login(req: Request, res: Response) {
+    const { email, password } = req.body as LoginInput;
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    const isMatch = await bcrypt.compare(password, user?.password || DUMMY_HASH);
+
+    if (!user || !user.password || !isMatch) {
+      throw AppError.unauthorized("Invalid email or password");
+    }
+
+    if (!user.status) {
+      throw AppError.forbidden("Your account has been deactivated. Please contact support.");
+    }
+
+    const token = issueSession(res, user);
+
+    return res.json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+    });
+  }
+
+  static async me(req: Request, res: Response) {
+    return res.json({ success: true, user: req.user });
+  }
+
+  static async logout(_req: Request, res: Response) {
+    res.clearCookie("auth_token", cookieOptions);
     return res.json({ success: true, message: "Logged out successfully" });
   }
 }

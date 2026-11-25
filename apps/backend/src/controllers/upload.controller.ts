@@ -1,100 +1,53 @@
 import { Request, Response } from "express";
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { AppError } from "../utils/errors";
 
-// Ensure destination directories exist
-const backendUploads = path.join(__dirname, "../../uploads");
-const frontendUploads = path.join(__dirname, "../../../frontend/public/uploads");
+export const uploadsDir = path.join(__dirname, "../../uploads");
+fs.mkdirSync(uploadsDir, { recursive: true });
 
-[backendUploads, frontendUploads].forEach((dir) => {
-  if (!fs.existsSync(dir)) {
-    try {
-      fs.mkdirSync(dir, { recursive: true });
-    } catch (e) {
-      console.error(`Could not create directory ${dir}:`, e);
-    }
-  }
-});
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+
+/** Identifies the real image type from the file's first bytes (never trusts client mime/extension). */
+export function detectImageExtension(buf: Buffer): ".png" | ".jpg" | ".gif" | ".webp" | null {
+  if (buf.length < 12) return null;
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return ".png";
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return ".jpg";
+  if (buf.toString("ascii", 0, 4) === "GIF8") return ".gif";
+  if (buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WEBP") return ".webp";
+  return null; // SVG and everything else is rejected
+}
 
 export class UploadController {
-  /**
-   * Handle image upload (supports both Multer file and Base64 JSON)
-   */
+  /** Accepts a multipart `image` file or a base64 JSON body `{ image: "data:image/...;base64,..." }`. */
   static async uploadImage(req: Request, res: Response) {
-    try {
-      // 1. Check if uploaded via Multer (multipart/form-data)
-      if (req.file) {
-        const filename = req.file.filename;
-        const srcPath = req.file.path;
+    let buffer: Buffer | null = null;
 
-        // Copy to frontend public/uploads for instant client preview
-        const destFrontend = path.join(frontendUploads, filename);
-        try {
-          fs.copyFileSync(srcPath, destFrontend);
-        } catch (copyErr) {
-          // ignore if copy fails
-        }
-
-        const fileUrl = `/uploads/${filename}`;
-        return res.json({
-          success: true,
-          message: "Image uploaded successfully",
-          url: fileUrl,
-          filename,
-        });
-      }
-
-      // 2. Check if sent as Base64 JSON
-      const { image, filename: clientFilename } = req.body;
-      if (image && typeof image === "string") {
-        const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-        let ext = ".jpg";
-        let base64Data = image;
-
-        if (matches && matches.length === 3) {
-          const mime = matches[1];
-          base64Data = matches[2];
-          if (mime.includes("png")) ext = ".png";
-          else if (mime.includes("webp")) ext = ".webp";
-          else if (mime.includes("gif")) ext = ".gif";
-        }
-
-        const safeName = (clientFilename || "img")
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, "-")
-          .substring(0, 30);
-        const filename = `${Date.now()}-${safeName}${ext}`;
-
-        const buffer = Buffer.from(base64Data, "base64");
-        const backendPath = path.join(backendUploads, filename);
-        fs.writeFileSync(backendPath, buffer);
-
-        const frontendPath = path.join(frontendUploads, filename);
-        try {
-          fs.writeFileSync(frontendPath, buffer);
-        } catch (e) {
-          // ignore
-        }
-
-        const fileUrl = `/uploads/${filename}`;
-        return res.json({
-          success: true,
-          message: "Image uploaded successfully",
-          url: fileUrl,
-          filename,
-        });
-      }
-
-      return res.status(400).json({
-        success: false,
-        message: "No image file or base64 data provided",
-      });
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      return res.status(500).json({
-        success: false,
-        message: error.message || "Failed to process image upload",
-      });
+    if (req.file) {
+      buffer = req.file.buffer;
+    } else if (typeof req.body?.image === "string") {
+      const match = req.body.image.match(/^data:image\/[A-Za-z0-9.+-]+;base64,([A-Za-z0-9+/=\s]+)$/);
+      if (!match) throw AppError.badRequest("Image must be a base64 data URL");
+      // 4 base64 chars encode 3 bytes: reject oversize before decoding
+      if ((match[1].length * 3) / 4 > MAX_IMAGE_BYTES) throw AppError.badRequest("Image must be 5MB or smaller");
+      buffer = Buffer.from(match[1], "base64");
     }
+
+    if (!buffer || buffer.length === 0) throw AppError.badRequest("No image file or base64 data provided");
+    if (buffer.length > MAX_IMAGE_BYTES) throw AppError.badRequest("Image must be 5MB or smaller");
+
+    const ext = detectImageExtension(buffer);
+    if (!ext) throw AppError.badRequest("Only PNG, JPEG, GIF or WebP images are allowed");
+
+    const filename = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`;
+    await fs.promises.writeFile(path.join(uploadsDir, filename), buffer, { flag: "wx" });
+
+    return res.json({
+      success: true,
+      message: "Image uploaded successfully",
+      url: `/uploads/${filename}`,
+      filename,
+    });
   }
 }

@@ -1,296 +1,121 @@
 import { Request, Response } from "express";
-import { prisma, PaymentStatus } from "@ecommerce/database";
+import { prisma } from "@ecommerce/database";
+import { CheckoutInput, PricingRequest, VerifyPaymentInput } from "@ecommerce/shared-types";
+import { env } from "../config/env";
 import { CheckoutService } from "../services/checkout.service";
-import {
-  calculateSubTotal,
-  calculateCouponDiscount,
-  calculateFinalPayableAmount,
-  convertToGatewayCurrency,
-} from "../utils/pricing.util";
+import { fromCents, priceOrder } from "../services/pricing.service";
+import { AppError } from "../utils/errors";
 
+/** Handlers run behind `validate()` + `asyncHandler()`: inputs are already parsed and typed. */
 export class OrderController {
-  /**
-   * Preview and calculate cart pricing with dynamic coupon & shipping rule
-   */
+  /** Cart preview: every number comes from the database, never from the client. */
   static async calculatePricing(req: Request, res: Response) {
-    try {
-      const { items, couponCode, shippingRuleId } = req.body;
+    const body = req.body as PricingRequest;
+    const priced = await priceOrder(prisma, {
+      items: body.items,
+      couponCode: body.couponCode,
+      shippingRuleId: body.shippingRuleId,
+      userId: req.user?.id,
+      strictCoupon: false,
+    });
 
-      if (!items || !Array.isArray(items)) {
-        return res.status(400).json({ success: false, message: "Cart items required" });
-      }
-
-      const subTotal = calculateSubTotal(items);
-      let coupon = null;
-
-      if (couponCode) {
-        const foundCoupon = await prisma.coupon.findUnique({
-          where: { code: couponCode },
-        });
-
-        if (
-          foundCoupon &&
-          foundCoupon.status &&
-          new Date() >= foundCoupon.startDate &&
-          new Date() <= foundCoupon.endDate &&
-          foundCoupon.totalUsed < foundCoupon.quantity
-        ) {
-          coupon = {
-            code: foundCoupon.code,
-            discountType: foundCoupon.discountType as "PERCENT" | "AMOUNT",
-            discount: foundCoupon.discount,
-          };
-        }
-      }
-
-      const discount = calculateCouponDiscount(subTotal, coupon);
-
-      let shippingCost = 0;
-      let shippingRule: any = null;
-      if (shippingRuleId) {
-        shippingRule = await prisma.shippingRule.findUnique({
-          where: { id: shippingRuleId },
-        });
-        if (shippingRule && shippingRule.status) {
-          shippingCost = shippingRule.cost;
-        }
-      }
-      if (!shippingRule) {
-        shippingRule = await prisma.shippingRule.findFirst({
-          where: { status: true },
-          orderBy: { cost: "asc" },
-        });
-        if (shippingRule) {
-          shippingCost = shippingRule.cost;
-        }
-      }
-
-      const finalPayable = calculateFinalPayableAmount(subTotal, discount, shippingCost);
-
-      return res.json({
-        success: true,
-        data: {
-          subTotal,
-          discount,
-          shippingCost,
-          finalPayable,
-          coupon,
-          shippingRule,
+    return res.json({
+      success: true,
+      data: {
+        items: priced.lines.map((l) => ({
+          productId: l.productId,
+          name: l.productName,
+          slug: l.slug,
+          image: l.thumbImage,
+          qty: l.qty,
+          unitPrice: fromCents(l.unitPriceCents),
+          variantTotal: fromCents(l.variantTotalCents),
+          lineTotal: fromCents(l.lineTotalCents),
+          variants: l.variants,
+        })),
+        subTotal: fromCents(priced.subTotalCents),
+        discount: fromCents(priced.discountCents),
+        shippingCost: fromCents(priced.shippingCents),
+        finalPayable: fromCents(priced.totalCents),
+        coupon: priced.coupon && {
+          code: priced.coupon.code,
+          discountType: priced.coupon.discountType,
+          discount: priced.coupon.discount,
         },
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+        couponError: priced.couponError,
+        shippingRule: priced.shipping && {
+          id: priced.shipping.id,
+          name: priced.shipping.name,
+          type: priced.shipping.type,
+          cost: fromCents(priced.shipping.costCents),
+        },
+        onlinePaymentAvailable: env.razorpayEnabled,
+      },
+    });
   }
 
-  /**
-   * Checkout & Process Payment
-   */
   static async checkout(req: Request, res: Response) {
-    try {
-      const userId = req.user!.id;
-      const {
-        items,
-        addressId,
-        shippingRuleId,
-        couponCode,
-        paymentMethod,
-        stripeToken,
-        razorpayPaymentId,
-      } = req.body;
-
-      if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ success: false, message: "Cart items required" });
-      }
-
-      // 1. Fetch user address (with fallback creation if needed)
-      let address: any = null;
-      if (addressId) {
-        address = await prisma.userAddress.findFirst({
-          where: { id: addressId, userId },
-        });
-      }
-      if (!address) {
-        address = await prisma.userAddress.findFirst({
-          where: { userId },
-        });
-      }
-      if (!address) {
-        const userRec = await prisma.user.findUnique({ where: { id: userId } });
-        address = await prisma.userAddress.create({
-          data: {
-            userId,
-            name: userRec?.name || "Royal Patron",
-            email: userRec?.email || "patron@sawariya.com",
-            phone: userRec?.phone || "+91 98290 12345",
-            country: "India",
-            state: "Rajasthan",
-            city: "Jaipur",
-            zipCode: "302001",
-            address: "42, Johari Bazaar",
-            isDefault: true,
-          },
-        });
-      }
-
-      // 2. Fetch shipping rule (with fallback to first active rule)
-      let shippingRule: any = null;
-      if (shippingRuleId) {
-        shippingRule = await prisma.shippingRule.findUnique({
-          where: { id: shippingRuleId },
-        });
-      }
-      if (!shippingRule || !shippingRule.status) {
-        shippingRule = await prisma.shippingRule.findFirst({
-          where: { status: true },
-          orderBy: { cost: "asc" },
-        });
-      }
-      if (!shippingRule) {
-        shippingRule = {
-          id: "default-shipping",
-          name: "Complimentary Insured Courier",
-          cost: 0,
-        };
-      }
-
-
-      // 3. Evaluate Coupon
-      let coupon = null;
-      if (couponCode) {
-        const foundCoupon = await prisma.coupon.findUnique({
-          where: { code: couponCode },
-        });
-        if (
-          foundCoupon &&
-          foundCoupon.status &&
-          new Date() >= foundCoupon.startDate &&
-          new Date() <= foundCoupon.endDate
-        ) {
-          coupon = {
-            code: foundCoupon.code,
-            discountType: foundCoupon.discountType as "PERCENT" | "AMOUNT",
-            discount: foundCoupon.discount,
-          };
-        }
-      }
-
-      // 4. Calculate amounts
-      const subTotal = calculateSubTotal(items);
-      const discount = calculateCouponDiscount(subTotal, coupon);
-      const payableAmount = calculateFinalPayableAmount(
-        subTotal,
-        discount,
-        shippingRule.cost
-      );
-
-      let paymentStatus: PaymentStatus = PaymentStatus.UNPAID;
-      let transactionId = `txn_${Date.now()}`;
-      let paidAmount = payableAmount;
-      let paidCurrencyName = "USD";
-
-      // 5. Handle Payment Gateways
-      if (paymentMethod === "COD") {
-        paymentStatus = PaymentStatus.UNPAID;
-        transactionId = `COD_${Date.now()}`;
-      } else if (paymentMethod === "STRIPE") {
-        const stripeSetting = await prisma.stripeSetting.findFirst();
-        paidCurrencyName = stripeSetting?.currencyName || "USD";
-        const rate = stripeSetting?.currencyRate || 1;
-        paidAmount = convertToGatewayCurrency(payableAmount, rate);
-        paymentStatus = PaymentStatus.PAID;
-        transactionId = stripeToken || `ch_${Date.now()}`;
-      } else if (paymentMethod === "RAZORPAY") {
-        const razorpaySetting = await prisma.razorpaySetting.findFirst();
-        paidCurrencyName = razorpaySetting?.currencyName || "INR";
-        const rate = razorpaySetting?.currencyRate || 83.5;
-        paidAmount = convertToGatewayCurrency(payableAmount, rate);
-        paymentStatus = PaymentStatus.PAID;
-        transactionId = razorpayPaymentId || `pay_${Date.now()}`;
-      }
-
-      // 6. Save order & execute transaction with immutable snapshots
-      const order = await CheckoutService.storeOrder({
-        userId,
-        cartItems: items,
-        addressSnapshot: address as any,
-        shippingSnapshot: {
-          id: shippingRule.id,
-          name: shippingRule.name,
-          cost: shippingRule.cost,
-        },
-        couponSnapshot: coupon,
-        paymentMethod,
-        paymentStatus,
-        transactionId,
-        paidAmount,
-        paidCurrencyName,
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: "Order placed successfully",
-        data: {
-          orderId: order.id,
-          invoiceId: order.invoiceId,
-        },
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    const result = await CheckoutService.placeOrder(req.user!.id, req.body as CheckoutInput);
+    return res.status(201).json({
+      success: true,
+      message: result.gateway ? "Order created. Complete the payment to confirm it." : "Order placed successfully",
+      data: result,
+    });
   }
 
-  /**
-   * Customer's Order History
-   */
+  static async verifyPayment(req: Request, res: Response) {
+    const order = await CheckoutService.confirmPayment(req.user!.id, req.body as VerifyPaymentInput);
+    return res.json({
+      success: true,
+      message: "Payment confirmed",
+      data: { orderId: order.id, invoiceId: order.invoiceId, paymentStatus: order.paymentStatus },
+    });
+  }
+
+  static async cancelOrder(req: Request, res: Response) {
+    const order = await CheckoutService.cancelOwnOrder(req.user!.id, req.params.id);
+    return res.json({
+      success: true,
+      message: "Order cancelled",
+      data: { orderId: order.id, orderStatus: order.orderStatus },
+    });
+  }
+
   static async getUserOrders(req: Request, res: Response) {
-    try {
-      const orders = await prisma.order.findMany({
-        where: { userId: req.user!.id },
-        orderBy: { createdAt: "desc" },
-        include: {
-          orderProducts: true,
-          transaction: true,
-        },
-      });
-      return res.json({ success: true, data: orders });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    const orders = await prisma.order.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: "desc" },
+      include: { orderProducts: true, transaction: true },
+    });
+    return res.json({ success: true, data: orders });
   }
 
   /**
-   * Track order by Invoice ID (Publicly accessible)
+   * Guest tracking needs the invoice number AND the email used on the order, so invoice numbers
+   * alone can't be enumerated. The same 404 is returned whichever of the two is wrong.
    */
   static async trackOrder(req: Request, res: Response) {
-    try {
-      const { invoiceId } = req.params;
-      const order = await prisma.order.findUnique({
-        where: { invoiceId: Number(invoiceId) },
-        select: {
-          id: true,
-          invoiceId: true,
-          orderStatus: true,
-          paymentStatus: true,
-          createdAt: true,
-          updatedAt: true,
-          orderProducts: {
-            select: {
-              productName: true,
-              qty: true,
-              unitPrice: true,
-            },
-          },
-        },
-      });
+    const invoiceId = Number(req.params.invoiceId);
+    const email = String(req.query.email);
 
-      if (!order) {
-        return res.status(404).json({ success: false, message: "Order not found" });
-      }
+    const order = await prisma.order.findUnique({
+      where: { invoiceId },
+      select: {
+        id: true,
+        invoiceId: true,
+        orderStatus: true,
+        paymentStatus: true,
+        createdAt: true,
+        updatedAt: true,
+        orderAddress: true,
+        orderProducts: { select: { productName: true, qty: true, unitPrice: true } },
+      },
+    });
 
-      return res.json({ success: true, data: order });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    const orderEmail = String((order?.orderAddress as { email?: string } | null)?.email ?? "").toLowerCase();
+    if (!order || orderEmail !== email) throw AppError.notFound("No order found for this invoice number and email");
+
+    const { orderAddress: _omit, ...safe } = order;
+    return res.json({ success: true, data: safe });
   }
 }

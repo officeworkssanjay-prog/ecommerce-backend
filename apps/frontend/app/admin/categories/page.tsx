@@ -1,204 +1,141 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { api, withFallback } from "@/lib/api";
-import {
-  FolderTree,
-  Plus,
-  Trash2,
-  CheckCircle2,
-  Folder,
-  Layers,
-  ChevronRight,
-  X,
-} from "lucide-react";
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import { api } from "@/lib/api";
+import type { Category, ChildCategory, SubCategory } from "@/lib/types";
+import { cn } from "@/lib/cn";
+import { useApi } from "@/lib/useApi";
+import { Button } from "@/components/ui/Button";
+import { ErrorState } from "@/components/ui/States";
+import { DataTable, PageHeader } from "@/components/admin/AdminKit";
+import type { Column } from "@/components/admin/AdminKit";
+import { RowActions, StatusToggle } from "@/components/admin/RowActions";
+import { useCrudActions } from "@/components/admin/crud";
+import { CategoryFormModal } from "@/components/admin/categories/CategoryFormModal";
+import type { CategoryKind, CategoryRecord } from "@/components/admin/categories/CategoryFormModal";
 
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  icon?: string | null;
-  status: boolean;
-  _count?: { subCategories: number; products: number };
-}
+type SubRow = SubCategory & { category?: { name: string }; _count?: { childCategories?: number; products?: number } };
+type ChildRow = ChildCategory & { subCategory?: { name: string; category?: { name: string } }; _count?: { products?: number } };
 
-const mockCategories: Category[] = [
-  { id: "c-1", name: "Ceramics & Clay", slug: "ceramics-clay", icon: "coffee", status: true, _count: { subCategories: 3, products: 28 } },
-  { id: "c-2", name: "Home Decor & Vases", slug: "home-decor-vases", icon: "home", status: true, _count: { subCategories: 4, products: 42 } },
-  { id: "c-3", name: "Wooden Handicrafts", slug: "wooden-handicrafts", icon: "box", status: true, _count: { subCategories: 2, products: 16 } },
-  { id: "c-4", name: "Textiles & Weaves", slug: "textiles-weaves", icon: "scissors", status: true, _count: { subCategories: 2, products: 12 } },
+const TABS: { kind: CategoryKind; label: string; entity: string; path: string }[] = [
+  { kind: "category", label: "Categories", entity: "Category", path: "/admin/categories" },
+  { kind: "sub", label: "Sub-categories", entity: "Sub-category", path: "/admin/sub-categories" },
+  { kind: "child", label: "Child categories", entity: "Child category", path: "/admin/child-categories" },
 ];
 
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>(mockCategories);
-  const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newCatName, setNewCatName] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [kind, setKind] = useState<CategoryKind>("category");
+  const [editing, setEditing] = useState<CategoryRecord | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
-  async function fetchCategories() {
-    setLoading(true);
-    const res = await withFallback<Category[]>(
-      api.get("/admin/categories"),
-      mockCategories
-    );
-    setCategories(res.data || mockCategories);
-    setLoading(false);
-  }
+  // All three lists load up front: sub/child forms need the parents, and tabs switch instantly.
+  const cats = useApi(async () => (await api.get<Category[]>("/admin/categories")).data);
+  const subs = useApi(async () => (await api.get<SubRow[]>("/admin/sub-categories")).data);
+  const children = useApi(async () => (await api.get<ChildRow[]>("/admin/child-categories")).data);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  const reloadAll = () => {
+    cats.reload();
+    subs.reload();
+    children.reload();
+  };
+  const { remove, setStatus } = useCrudActions(reloadAll);
 
-  const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCatName.trim()) return;
-    setSaving(true);
+  const tab = TABS.find((t) => t.kind === kind)!;
+  const state = kind === "category" ? cats : kind === "sub" ? subs : children;
 
-    const res = await api.post("/admin/categories", {
-      name: newCatName,
-      status: true,
-    });
-
-    if (res.success && res.data) {
-      setCategories((prev) => [...prev, res.data]);
-    } else {
-      // Local addition
-      setCategories((prev) => [
-        ...prev,
-        {
-          id: `c-${Date.now()}`,
-          name: newCatName,
-          slug: newCatName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-          status: true,
-          _count: { subCategories: 0, products: 0 },
-        },
-      ]);
-    }
-
-    setSaving(false);
-    setIsModalOpen(false);
-    setNewCatName("");
+  const openForm = (record: CategoryRecord | null) => {
+    setEditing(record);
+    setFormOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    setCategories((prev) => prev.filter((c) => c.id !== id));
-    await api.delete(`/admin/categories/${id}`);
-  };
+  const statusCol = <T extends { id: string; name: string; status: boolean }>(): Column<T> => ({
+    key: "status",
+    header: "Status",
+    render: (r) => <StatusToggle active={r.status} name={r.name} onToggle={(s) => setStatus(`${tab.path}/${r.id}`, tab.entity, r.name, s)} />,
+  });
+  const actionsCol = <T extends { id: string; name: string; status: boolean }>(toRecord: (r: T) => CategoryRecord): Column<T> => ({
+    key: "actions",
+    header: "",
+    className: "w-24",
+    render: (r) => <RowActions name={r.name} onEdit={() => openForm(toRecord(r))} onDelete={() => remove(`${tab.path}/${r.id}`, tab.entity, r.name)} />,
+  });
+
+  const categoryColumns: Column<Category>[] = [
+    { key: "name", header: "Name", render: (c) => <span className="font-medium">{c.name}</span> },
+    { key: "sub", header: "Sub-categories", render: (c) => c._count?.subCategories ?? 0 },
+    { key: "products", header: "Products", render: (c) => c._count?.products ?? 0 },
+    statusCol<Category>(),
+    actionsCol<Category>((c) => ({ id: c.id, name: c.name, status: c.status, icon: c.icon })),
+  ];
+  const subColumns: Column<SubRow>[] = [
+    { key: "name", header: "Name", render: (s) => <span className="font-medium">{s.name}</span> },
+    { key: "category", header: "Category", render: (s) => s.category?.name ?? "-" },
+    { key: "child", header: "Child categories", render: (s) => s._count?.childCategories ?? 0 },
+    { key: "products", header: "Products", render: (s) => s._count?.products ?? 0 },
+    statusCol<SubRow>(),
+    actionsCol<SubRow>((s) => ({ id: s.id, name: s.name, status: s.status, categoryId: s.categoryId })),
+  ];
+  const childColumns: Column<ChildRow>[] = [
+    { key: "name", header: "Name", render: (c) => <span className="font-medium">{c.name}</span> },
+    { key: "parent", header: "Sub-category", render: (c) => (c.subCategory ? `${c.subCategory.category?.name ? `${c.subCategory.category.name} / ` : ""}${c.subCategory.name}` : "-") },
+    { key: "products", header: "Products", render: (c) => c._count?.products ?? 0 },
+    statusCol<ChildRow>(),
+    actionsCol<ChildRow>((c) => ({ id: c.id, name: c.name, status: c.status, subCategoryId: c.subCategoryId })),
+  ];
+
+  const parents =
+    kind === "sub"
+      ? (cats.data ?? []).map((c) => ({ id: c.id, label: c.name }))
+      : kind === "child"
+        ? (subs.data ?? []).map((s) => ({ id: s.id, label: `${s.category?.name ? `${s.category.name} / ` : ""}${s.name}` }))
+        : [];
+  const needsParent = kind !== "category" && parents.length === 0 && !state.loading;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            Category Hierarchy & Taxonomy
-          </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            Organize the marketplace catalog into root categories, subcategories, and child categories.
-          </p>
-        </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-md shadow-purple-600/20 transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Root Category</span>
-        </button>
-      </div>
-
-      {/* Categories Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {categories.map((cat) => (
-          <div
-            key={cat.id}
-            className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm space-y-4 flex flex-col justify-between"
+    <div>
+      <PageHeader
+        title="Categories"
+        description="Organise products into categories, sub-categories and child categories."
+        actions={
+          <Button icon={<Plus className="h-4 w-4" aria-hidden />} onClick={() => openForm(null)} disabled={needsParent}>
+            Add {tab.entity.toLowerCase()}
+          </Button>
+        }
+      />
+      <div role="tablist" aria-label="Category levels" className="mb-4 flex gap-1 border-b border-sand">
+        {TABS.map((t) => (
+          <button
+            key={t.kind}
+            type="button"
+            role="tab"
+            id={`tab-${t.kind}`}
+            aria-selected={kind === t.kind}
+            aria-controls="category-panel"
+            onClick={() => setKind(t.kind)}
+            className={cn("-mb-px border-b-2 px-4 py-2 text-sm font-medium", kind === t.kind ? "border-gold text-gold-dark" : "border-transparent text-ink/60 hover:text-ink")}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-                  <Folder className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
-                    {cat.name}
-                  </h3>
-                  <span className="text-[11px] text-zinc-400 block font-mono">
-                    /{cat.slug}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => handleDelete(cat.id)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between text-xs pt-3 border-t border-zinc-100 dark:border-zinc-800 text-zinc-500">
-              <span className="flex items-center space-x-1.5">
-                <Layers className="w-3.5 h-3.5 text-zinc-400" />
-                <span>{cat._count?.subCategories || 0} Subcategories</span>
-              </span>
-              <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-                {cat._count?.products || 0} Products
-              </span>
-            </div>
-          </div>
+            {t.label}
+          </button>
         ))}
       </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
-              <h3 className="font-bold text-base text-zinc-900 dark:text-zinc-100">
-                Add Root Category
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateCategory} className="space-y-4 text-xs">
-              <div>
-                <label className="font-semibold block mb-1">Category Title</label>
-                <input
-                  type="text"
-                  required
-                  value={newCatName}
-                  onChange={(e) => setNewCatName(e.target.value)}
-                  placeholder="e.g. Sculptures & Idols"
-                  className="w-full p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-md shadow-purple-600/20"
-                >
-                  {saving ? "Creating..." : "Create Category"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <div id="category-panel" role="tabpanel" aria-labelledby={`tab-${kind}`} aria-live="polite">
+        {needsParent && (
+          <p className="mb-3 rounded-md bg-parchment px-3 py-2 text-sm text-ink/70">
+            Create a {kind === "sub" ? "category" : "sub-category"} first, then you can add {tab.entity.toLowerCase()}s.
+          </p>
+        )}
+        {state.message && !state.data ? (
+          <ErrorState message={state.message} onRetry={state.reload} />
+        ) : kind === "category" ? (
+          <DataTable columns={categoryColumns} rows={cats.data} loading={cats.loading && !cats.data} emptyTitle="No categories yet" />
+        ) : kind === "sub" ? (
+          <DataTable columns={subColumns} rows={subs.data} loading={subs.loading && !subs.data} emptyTitle="No sub-categories yet" />
+        ) : (
+          <DataTable columns={childColumns} rows={children.data} loading={children.loading && !children.data} emptyTitle="No child categories yet" />
+        )}
+      </div>
+      <CategoryFormModal open={formOpen} kind={kind} record={editing} parents={parents} onClose={() => setFormOpen(false)} onSaved={reloadAll} />
     </div>
   );
 }

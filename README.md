@@ -1,102 +1,67 @@
-# E-Commerce Platform (Turborepo Monorepo)
+# Sawariya Jewels: e-commerce platform
 
-A high-performance, full-featured e-commerce platform migrated from PHP/Laravel 10 to a modern TypeScript stack:
-- **Frontend (`apps/frontend`)**: Next.js 14/15 (App Router), Tailwind CSS, shadcn/ui, TanStack Table v8, Lucide Icons, Zustand.
-- **Backend (`apps/backend`)**: Node.js, Express, TypeScript, JWT Auth & RBAC, Zod validation, WebSockets, Payment Gateway integrations (Stripe, PayPal, Razorpay, COD).
-- **Database (`packages/database`)**: PostgreSQL with Prisma ORM, native `JSONB` for immutable checkout snapshots, 54 domain models, seeding scripts.
-- **Shared Types (`packages/shared-types`)**: Shared TypeScript interfaces, DTOs, and Zod schemas.
+A jewellery store with a buyer storefront and a store-owner admin panel. TypeScript monorepo (Turborepo):
 
----
+| Package | What it is |
+|---|---|
+| `apps/frontend` | Next.js 16 (App Router) + Tailwind CSS 4 storefront, buyer account area and admin panel |
+| `apps/backend` | Express + TypeScript REST API (JWT cookie auth, Zod validation, Prisma) |
+| `packages/database` | Prisma schema, migrations, seed, shared `prisma` client (PostgreSQL) |
+| `packages/shared-types` | Zod schemas and types shared by the API and the web app |
 
-## 🏛️ Monorepo Architecture
+**Two roles only:** `ADMIN` (the store owner) and `USER` (a buyer). There is no vendor or marketplace tier.
 
-```text
-ecommerce-backend/
-├── apps/
-│   ├── backend/                      # Node.js + Express API Backend
-│   │   ├── src/
-│   │   │   ├── controllers/          # Admin, Customer, Storefront, Order controllers
-│   │   │   ├── middlewares/          # Auth JWT & Role-based Access Control (RoleMiddleware)
-│   │   │   ├── routes/               # Modular Express endpoints
-│   │   │   ├── services/             # Atomic checkout, inventory decrement, order snapshotting
-│   │   │   ├── utils/                # Pricing, coupon discount & shipping calculation engine
-│   │   │   └── server.ts             # Express server entry point
-│   │   └── package.json
-│   │
-│   └── frontend/                     # Next.js App Router Frontend
-│       ├── src/
-│       │   ├── app/                  # (storefront), (customer), (admin) route groups
-│       │   ├── components/
-│       │   │   ├── ui/               # shadcn/ui primitives (Button, Card, Table, Badge, Dialog)
-│       │   │   └── tables/           # Reusable TanStack Table (Yajra DataTable replacement)
-│       │   └── store/                # Zustand client cart & wishlist store with LocalStorage sync
-│       └── package.json
-│
-├── packages/
-│   ├── database/                     # PostgreSQL Prisma ORM
-│   │   ├── prisma/
-│   │   │   ├── schema.prisma         # Unified schema covering all 54 domain models
-│   │   │   └── seed.ts               # Seed data for Admin, Customer, and Settings
-│   │   └── src/index.ts              # Singleton PrismaClient export
-│   │
-│   └── shared-types/                 # Shared TypeScript interfaces & Zod validation
-│       └── src/                      # Auth, Order, Product, Chat schemas
-│
-├── docs/                             # Original technical specifications and route references
-├── turbo.json                        # Turborepo task pipeline configuration
-└── package.json                      # Workspace root configuration
-```
+## Quick start
 
----
+Prerequisites: Node 20+, npm 10+, PostgreSQL 14+ (a Docker one-liner is below).
 
-## 🚀 Quick Start Guide
-
-### 1. Prerequisites
-- **Node.js**: `v18.x` or `v20.x`
-- **NPM**: `v9.x` or `v10.x`
-- **PostgreSQL**: `v14+` running locally or via Docker / Supabase / Neon
-
-### 2. Install All Monorepo Dependencies
-From the repository root:
 ```bash
+# 1. Install
 npm install
-```
 
-### 3. Configure PostgreSQL Database
-Create a `.env` file in the root or in `packages/database/.env`:
-```ini
-DATABASE_URL="postgresql://postgres:password@localhost:5432/ecommerce_db?schema=public"
-JWT_SECRET="your-super-secret-jwt-key"
-FRONTEND_URL="http://localhost:3000"
-PORT=5000
-```
+# 2. Database (example: Docker on port 5433)
+docker run -d --name ecommerce_postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=ecommerce_db \
+  -p 5433:5432 -v ecommerce_pgdata:/var/lib/postgresql/data postgres:16-alpine
 
-### 4. Push Schema & Seed Initial Data
-```bash
-# Push Prisma schema to PostgreSQL
-npm run db:push
+# 3. Configure: copy .env.example to .env (root) and to apps/backend/.env, then set JWT_SECRET
+#    (generate one: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
 
-# Seed default Admin, Customer, Categories & Payment Settings
+# 4. Create tables + sample data
+npm run db:generate
+npm run db:migrate:deploy
 npm run db:seed
-```
 
-> **Default Seed Accounts:**
-> - **Admin**: `admin@sawariyajewels.com` / `admin123`
-> - **Customer**: `collector@gmail.com` / `user123`
-
-### 5. Launch Development Servers (Turborepo)
-```bash
+# 5. Run everything (API on :5000, web app on :3000)
 npm run dev
 ```
-- **Storefront & Portals**: `http://localhost:3000`
-- **Node.js Express API**: `http://localhost:5000`
-- **API Health Check**: `http://localhost:5000/health`
 
----
+Seed accounts (development only, change them before going live):
 
-## 🗄️ Database Domain Highlights
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@sawariyajewels.com` | `admin123` |
+| Buyer | `collector@gmail.com` | `user123` |
 
-- **Two-Role RBAC**: `Role` enum (`ADMIN`, `USER`) guarded by `requireRole()` / `requireAdmin`. Admins own the catalogue; there is no vendor/merchant tier.
-- **Immutable JSON Snapshots**: Orders preserve frozen snapshots (`orderAddress`, `shippingMethod`, `coupon`, `variants`) directly in PostgreSQL `JSONB` columns.
-- **Atomic Checkout**: Transaction runner handles line item verification, inventory decrements (`product.qty -= item.qty`), and financial transaction records inside an atomic `prisma.$transaction()`.
-- **Logistics State Machine**: 7-stage order progression (`PENDING` -> `PROCESSED_AND_READY_TO_SHIP` -> `DROPPED_OFF` -> `SHIPPED` -> `OUT_FOR_DELIVERY` -> `DELIVERED` -> `CANCELED`).
+The web app calls the API through its own origin (`/api/*` is proxied to `BACKEND_ORIGIN`), so login cookies are first-party and no CORS setup is needed.
+
+## Everyday commands
+
+```bash
+npm run dev          # API + web app
+npm run build        # production build of every package
+npm run typecheck    # tsc for every package
+npm run lint         # eslint (web) + tsc
+npm test             # API tests (need the database running)
+npm run db:migrate   # create a new migration after editing schema.prisma
+npm run db:seed      # idempotent: safe to run repeatedly
+```
+
+## How it works
+
+- **Validation everywhere.** Every request body, query and URL parameter is validated with a Zod schema from `packages/shared-types` before a controller runs (`apps/backend/src/middlewares/validate.ts`). Failures return `400` with per-field messages that the forms display. The database repeats the important rules as `CHECK` constraints (no negative stock or prices, ratings 1-5, coupon limits, lowercase emails …).
+- **The server decides prices.** A cart is only product ids, quantities and chosen options. Prices, offers, stock, coupons and shipping are recalculated on the server from the database (`services/pricing.service.ts`); money is stored as `DECIMAL(12,2)`.
+- **Safe checkout.** Orders are created in one transaction with guarded stock and coupon updates, so two buyers cannot take the last item. Cash on delivery or Razorpay; an online order is marked paid only after its payment signature is verified (`services/checkout.service.ts`, `razorpay.service.ts`).
+- **Order lifecycle.** `PENDING → PROCESSED_AND_READY_TO_SHIP → DROPPED_OFF → SHIPPED → OUT_FOR_DELIVERY → DELIVERED`, with `CANCELED` allowed early. Illegal jumps are rejected; cancelling returns stock and coupon uses.
+- **Route guards.** `apps/frontend/proxy.ts` protects `/account`, `/checkout` and `/admin` (admins are verified against the API); the API enforces roles again on every endpoint.
+
+More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/API.md](docs/API.md) · [docs/PAYMENT_AND_CHECKOUT.md](docs/PAYMENT_AND_CHECKOUT.md) · [docs/SETUP_AND_DEPLOYMENT.md](docs/SETUP_AND_DEPLOYMENT.md) · [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) · Postman: `postman_collection.json`.
