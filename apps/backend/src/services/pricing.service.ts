@@ -43,6 +43,11 @@ export interface PricedOrder {
   subTotalCents: number;
   discountCents: number;
   shippingCents: number;
+  /** % off for online payment, in cents */
+  prepaidDiscountCents: number;
+  codFeeCents: number;
+  giftWrap: boolean;
+  giftWrapFeeCents: number;
   totalCents: number;
   coupon: CouponResult | null;
   couponError: string | null;
@@ -197,7 +202,7 @@ export async function resolveShipping(
  */
 export async function priceOrder(
   db: Db,
-  input: { items: CartItemInput[]; couponCode?: string; shippingRuleId?: string; userId?: string; strictCoupon: boolean }
+  input: { items: CartItemInput[]; couponCode?: string; shippingRuleId?: string; userId?: string; strictCoupon: boolean; paymentMethod?: "COD" | "RAZORPAY"; giftWrap?: boolean }
 ): Promise<PricedOrder> {
   const lines = await priceCart(db, input.items);
   const subTotalCents = lines.reduce((sum, l) => sum + l.lineTotalCents, 0);
@@ -218,12 +223,26 @@ export async function priceOrder(
   const shipping = await resolveShipping(db, discountedCents, input.shippingRuleId);
   const shippingCents = shipping?.costCents ?? 0;
 
+  // Store-configured rules: prepaid discount (online payment), COD fee, optional gift wrap.
+  const general = await db.generalSetting.findFirst();
+  const prepaidDiscountCents =
+    input.paymentMethod === "RAZORPAY"
+      ? Math.min(discountedCents, Math.round((discountedCents * Number(general?.prepaidDiscountPercent ?? 0)) / 100))
+      : 0;
+  const codFeeCents = input.paymentMethod === "COD" ? toCents(general?.codFee) : 0;
+  const giftWrap = Boolean(input.giftWrap);
+  const giftWrapFeeCents = giftWrap ? toCents(general?.giftWrapFee) : 0;
+
   return {
     lines,
     subTotalCents,
     discountCents,
     shippingCents,
-    totalCents: discountedCents + shippingCents,
+    prepaidDiscountCents,
+    codFeeCents,
+    giftWrap,
+    giftWrapFeeCents,
+    totalCents: discountedCents + shippingCents + codFeeCents + giftWrapFeeCents - prepaidDiscountCents,
     coupon,
     couponError,
     shipping,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { AddressInputSchema } from "@ecommerce/shared-types";
@@ -9,6 +9,8 @@ import type { Address } from "@/lib/types";
 import { applyServerErrors } from "@/lib/forms";
 import { Button } from "@/components/ui/Button";
 import { Checkbox, FormError, Input, Select } from "@/components/ui/Field";
+import { PincodeNote } from "@/components/pincode/PincodeNote";
+import { usePincode } from "@/components/pincode/usePincode";
 
 type FormIn = z.input<typeof AddressInputSchema>;
 type FormOut = z.output<typeof AddressInputSchema>;
@@ -22,14 +24,17 @@ interface Props {
   /** Show the "make default" checkbox. */
   allowDefault?: boolean;
   defaults?: Partial<FormIn>;
+  /** Check delivery for the postal code as it is typed. */
+  checkPincode?: boolean;
 }
 
-export function AddressForm({ initial, onSave, onCancel, submitLabel = "Save address", allowDefault = true, defaults }: Props) {
+export function AddressForm({ initial, onSave, onCancel, submitLabel = "Save address", allowDefault = true, defaults, checkPincode }: Props) {
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
     setError,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormIn, unknown, FormOut>({
     resolver: zodResolver(AddressInputSchema),
@@ -48,6 +53,9 @@ export function AddressForm({ initial, onSave, onCancel, submitLabel = "Save add
         }
       : { country: "", addressType: "home", isDefault: false, ...defaults },
   });
+
+  const zip = useWatch({ control, name: "zipCode" });
+  const pincode = usePincode(checkPincode ? zip : undefined);
 
   const submit = handleSubmit(async (values) => {
     setFormError(null);
@@ -74,6 +82,11 @@ export function AddressForm({ initial, onSave, onCancel, submitLabel = "Save add
         <Input label="State" autoComplete="address-level1" required error={errors.state?.message} {...register("state")} />
         <Input label="Postal code" autoComplete="postal-code" required error={errors.zipCode?.message} {...register("zipCode")} />
         <Input label="Country" autoComplete="country-name" required error={errors.country?.message} {...register("country")} />
+        {checkPincode && (
+          <div className="sm:col-span-2" aria-live="polite">
+            <PincodeNote state={pincode} />
+          </div>
+        )}
       </div>
       {allowDefault && <Checkbox label="Make this my default address" {...register("isDefault")} />}
       <div className="flex justify-end gap-3">

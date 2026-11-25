@@ -319,6 +319,76 @@
           }
         },
         {
+          "name": "Pincode check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/storefront/pincode/:pincode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "storefront",
+                "pincode",
+                ":pincode"
+              ],
+              "variable": [
+                {
+                  "key": "pincode",
+                  "value": "00000000-0000-4000-8000-000000000000"
+                }
+              ]
+            },
+            "description": "public. `configured: false` means the store has not set delivery areas, so delivery is unrestricted."
+          }
+        },
+        {
+          "name": "Notify me (sold-out product)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/storefront/products/:slug/notify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "storefront",
+                "products",
+                ":slug",
+                "notify"
+              ],
+              "variable": [
+                {
+                  "key": "slug",
+                  "value": "00000000-0000-4000-8000-000000000000"
+                }
+              ]
+            },
+            "description": "public. Only for products with no stock; one request per product and email.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"asha@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "Shipping rules",
           "request": {
             "method": "GET",
@@ -596,7 +666,7 @@
             "description": "public. Prices come from the database; any client prices are ignored.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"00000000-0000-4000-8000-000000000000\",\n      \"qty\": 1\n    }\n  ],\n  \"couponCode\": \"ROYAL10\"\n}",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"00000000-0000-4000-8000-000000000000\",\n      \"qty\": 1\n    }\n  ],\n  \"couponCode\": \"ROYAL10\",\n  \"paymentMethod\": \"COD\",\n  \"giftWrap\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2081,6 +2151,52 @@
     {
       "name": "Admin: store",
       "item": [
+        {
+          "name": "Serviceable pincodes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/pincodes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "pincodes"
+              ]
+            },
+            "description": "admin. POST/PUT/DELETE: { pincode (6 digits), city?, state?, deliveryDays?, codAvailable?, status? }. While the list is empty, delivery is not restricted."
+          }
+        },
+        {
+          "name": "Stock alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stock-alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stock-alerts"
+              ]
+            },
+            "description": "admin. Notify-me requests from buyers."
+          }
+        },
         {
           "name": "Shipping rules",
           "request": {

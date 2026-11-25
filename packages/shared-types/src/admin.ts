@@ -151,6 +151,17 @@ const shippingShape = z.object({
 export const CreateShippingRuleSchema = shippingShape;
 export const UpdateShippingRuleSchema = atLeastOne(shippingShape);
 
+const pincodeShape = z.object({
+  pincode: z.string({ required_error: "Pincode is required" }).trim().regex(/^[1-9][0-9]{5}$/, "Enter a valid 6-digit pincode"),
+  city: optionalText(60),
+  state: optionalText(60),
+  deliveryDays: z.coerce.number().int("Whole days only").min(0).max(60).default(5),
+  codAvailable: bool.default(true),
+  status: bool.default(true),
+});
+export const CreatePincodeSchema = pincodeShape;
+export const UpdatePincodeSchema = atLeastOne(pincodeShape);
+
 export const UpdateAdvertisementSchema = z.object({
   key: z.string({ required_error: "Key is required" }).trim().regex(/^[a-z0-9_]{3,60}$/, "Key may only contain lowercase letters, numbers and _"),
   value: z
@@ -200,6 +211,9 @@ export const UpdateGeneralSettingSchema = z.object({
   currencyName: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, "Use a 3-letter currency code, e.g. INR"),
   currencyIcon: z.string().trim().min(1, "Currency symbol is required").max(5),
   timeZone: z.string().trim().refine(isTimeZone, "Unknown time zone"),
+  prepaidDiscountPercent: z.coerce.number().min(0, "Cannot be negative").max(100, "Cannot exceed 100").default(0),
+  codFee: money("COD fee").default(0),
+  giftWrapFee: money("Gift wrap fee").default(0),
 });
 
 export const UpdateEmailSettingSchema = z.object({

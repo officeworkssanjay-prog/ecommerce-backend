@@ -22,6 +22,8 @@ import { CHECKOUT_STEPS, StepCard, StepIndicator } from "@/components/checkout/S
 import { useCheckout } from "@/components/checkout/useCheckout";
 import { EmptyCart } from "@/components/cart/EmptyCart";
 import { useCartPricing } from "@/components/cart/useCartPricing";
+import { usePricing } from "@/components/cart/usePricing";
+import { usePincode } from "@/components/pincode/usePincode";
 
 const HELPERS = ["", "Choose where your jewellery should arrive.", "Select a delivery service.", "Choose a secure payment method."];
 
@@ -30,14 +32,18 @@ const stateOf = (i: number, step: number) => (i < step ? "done" : i === step ? "
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { cart, pricing, loading, error, cartProblem, message, rules, setShippingRuleId, couponCode } = useCartPricing();
+  const [payment, setPayment] = useState<PaymentChoice>("COD");
+  const [giftWrap, setGiftWrap] = useState(false);
+  const { cart, pricing, loading, error, cartProblem, message, rules, setShippingRuleId, couponCode, shippingRuleId } = useCartPricing({ paymentMethod: payment, giftWrap });
+  // A second preview for the other payment method (with gift wrap on) gives the hints shown on the options.
+  const otherMethod: PaymentChoice = payment === "COD" ? "RAZORPAY" : "COD";
+  const other = usePricing(cart.toApiItems(), { couponCode, shippingRuleId, paymentMethod: otherMethod, giftWrap: true, enabled: cart.items.length > 0 });
   const prefill = useMemo(() => ({ name: user?.name, email: user?.email }), [user?.name, user?.email]);
   const { outcome, busy, error: checkoutError, place, retryPayment, cancelUnpaid } = useCheckout({ clearCart: cart.clearCart, prefill });
 
   const addresses = useApi(async () => (await api.get<Address[]>("/user/addresses")).data, [], { enabled: !!user });
   const [step, setStep] = useState(0);
   const [chosenAddress, setChosenAddress] = useState<string | null>(null);
-  const [payment, setPayment] = useState<PaymentChoice>("COD");
 
   useEffect(() => {
     if (!authLoading && !user && !outcome) router.replace("/login?next=/checkout");
@@ -47,6 +53,7 @@ export default function CheckoutPage() {
   const list = addresses.data ?? [];
   const addressId = list.some((a) => a.id === chosenAddress) ? chosenAddress : ((list.find((a) => a.isDefault) ?? list[0])?.id ?? chosenAddress);
   const address = list.find((a) => a.id === addressId);
+  const pincode = usePincode(address?.zipCode);
 
   if (outcome) return <Outcomes outcome={outcome} busy={busy} error={checkoutError} onRetry={retryPayment} onCancel={cancelUnpaid} />;
   if (authLoading || !user) return <PageLoader label="Checking your session…" />;
@@ -59,8 +66,16 @@ export default function CheckoutPage() {
   }
 
   const onlineAvailable = !!pricing?.onlinePaymentAvailable;
+  const codBlocked = pincode.status === "done" && pincode.result.configured && pincode.result.serviceable && !pincode.result.codAvailable;
+  const unserviceable = pincode.status === "done" && pincode.result.configured && !pincode.result.serviceable;
   const method: PaymentChoice = onlineAvailable ? payment : "COD";
-  const ready = !!pricing && !error && !!addressId;
+  const ready = !!pricing && !error && !!addressId && !unserviceable && !(codBlocked && method === "COD");
+  const forMethod = (m: PaymentChoice) => (method === m ? pricing : other.pricing);
+  const hints = {
+    prepaidDiscount: forMethod("RAZORPAY")?.prepaidDiscount ?? 0,
+    codFee: forMethod("COD")?.codFee ?? 0,
+    giftWrapFee: (giftWrap ? pricing?.giftWrapFee : other.pricing?.giftWrapFee) ?? 0,
+  };
 
   const onPlace = () => {
     if (!pricing || !addressId) return;
@@ -70,6 +85,7 @@ export default function CheckoutPage() {
       paymentMethod: method,
       couponCode: pricing.coupon?.code ?? (pricing.couponError ? undefined : couponCode),
       shippingRuleId: pricing.shippingRule?.id,
+      giftWrap,
     });
   };
 
@@ -94,13 +110,15 @@ export default function CheckoutPage() {
       selectedId={addressId}
       onSelect={setChosenAddress}
       onContinue={() => setStep(2)}
+      pincode={pincode}
       userName={user.name}
       userEmail={user.email}
     />,
     pricing ? <DeliveryStep key="d" rules={rules} pricing={pricing} onSelect={setShippingRuleId} onContinue={() => setStep(3)} /> : <PageLoader key="d" label="Calculating shipping…" className="py-10" />,
     <div key="p" className="space-y-3">
-      <PaymentStep online={onlineAvailable} value={method} onChange={setPayment} onPlace={onPlace} placing={busy} total={pricing?.finalPayable ?? 0} disabled={!ready} />
-      {!ready && <p className="text-xs text-ink/60">Choose a delivery address and make sure your cart has no problems to place the order.</p>}
+      <PaymentStep online={onlineAvailable} value={method} onChange={setPayment} onPlace={onPlace} placing={busy} total={pricing?.finalPayable ?? 0} disabled={!ready} codBlocked={codBlocked} hints={hints} giftWrap={giftWrap} onGiftWrap={setGiftWrap} />
+      {unserviceable && <p role="alert" className="text-xs text-danger">We do not deliver to {address?.zipCode}. Choose a different address.</p>}
+      {!ready && !unserviceable && <p className="text-xs text-ink/60">Choose a delivery address and make sure your cart has no problems to place the order.</p>}
     </div>,
   ];
 

@@ -8,6 +8,8 @@ import type { PricingResult } from "@/lib/types";
 interface Options {
   couponCode?: string;
   shippingRuleId?: string;
+  paymentMethod?: "COD" | "RAZORPAY";
+  giftWrap?: boolean;
   enabled?: boolean;
   debounceMs?: number;
 }
@@ -24,17 +26,17 @@ export interface PricingState {
 }
 
 /** Asks the server to price the cart. Re-runs (debounced) whenever items, coupon or shipping change. */
-export function usePricing(items: ApiCartItem[], { couponCode, shippingRuleId, enabled = true, debounceMs = 300 }: Options = {}): PricingState {
+export function usePricing(items: ApiCartItem[], { couponCode, shippingRuleId, paymentMethod, giftWrap, enabled = true, debounceMs = 300 }: Options = {}): PricingState {
   const [pricing, setPricing] = useState<PricingResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [tick, setTick] = useState(0);
   const latest = useRef(0);
-  const key = JSON.stringify({ items, couponCode, shippingRuleId });
+  const key = JSON.stringify({ items, couponCode, shippingRuleId, paymentMethod, giftWrap });
 
   useEffect(() => {
     const id = ++latest.current;
-    const req = JSON.parse(key) as { items: ApiCartItem[]; couponCode?: string; shippingRuleId?: string };
+    const req = JSON.parse(key) as { items: ApiCartItem[]; couponCode?: string; shippingRuleId?: string; paymentMethod?: "COD" | "RAZORPAY"; giftWrap?: boolean };
     if (!enabled || req.items.length === 0) return;
     const timer = setTimeout(() => {
       setLoading(true);
@@ -43,6 +45,8 @@ export function usePricing(items: ApiCartItem[], { couponCode, shippingRuleId, e
           items: req.items,
           couponCode: req.couponCode || undefined,
           shippingRuleId: req.shippingRuleId || undefined,
+          paymentMethod: req.paymentMethod,
+          giftWrap: req.giftWrap || undefined,
         })
         .then((res) => {
           if (id !== latest.current) return;

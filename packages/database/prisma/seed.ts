@@ -277,6 +277,10 @@ async function main() {
     currencyName: "INR",
     currencyIcon: "₹",
     timeZone: "Asia/Kolkata",
+    // Store rules chosen by the owner: 5% off prepaid orders, ₹50 COD fee, ₹99 optional gift wrap
+    prepaidDiscountPercent: 5,
+    codFee: 50,
+    giftWrapFee: 99,
   };
   if (general) await prisma.generalSetting.update({ where: { id: general.id }, data: settings });
   else await prisma.generalSetting.create({ data: settings });

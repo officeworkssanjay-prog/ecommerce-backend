@@ -3,6 +3,7 @@ import { CheckoutInput, VerifyPaymentInput } from "@ecommerce/shared-types";
 import { env } from "../config/env";
 import { AppError } from "../utils/errors";
 import { Db, fromCents, priceOrder, toCents } from "./pricing.service";
+import { checkPincode } from "./pincode.service";
 import { createGatewayOrder, verifyPaymentSignature } from "./razorpay.service";
 
 /** How a store-currency amount converts to what Razorpay charges. */
@@ -109,7 +110,18 @@ export class CheckoutService {
         shippingRuleId: input.shippingRuleId,
         userId,
         strictCoupon: true,
+        paymentMethod: input.paymentMethod,
+        giftWrap: input.giftWrap,
       });
+
+      // Delivery area (only enforced once the store has configured pincodes)
+      const area = await checkPincode(tx, address.zipCode);
+      if (area.configured) {
+        if (!area.serviceable) throw AppError.badRequest(`Sorry, we do not deliver to pincode ${address.zipCode} yet`);
+        if (input.paymentMethod === "COD" && !area.codAvailable) {
+          throw AppError.badRequest("Cash on delivery is not available for this pincode. Please pay online.");
+        }
+      }
 
       // Reserve stock with a guarded decrement; ordered by id so concurrent orders can't deadlock.
       const need = new Map<string, { qty: number; name: string }>();
@@ -144,6 +156,10 @@ export class CheckoutService {
           currencyIcon,
           productQty: priced.lines.reduce((sum, l) => sum + l.qty, 0),
           paymentMethod: input.paymentMethod,
+          prepaidDiscount: fromCents(priced.prepaidDiscountCents),
+          codFee: fromCents(priced.codFeeCents),
+          giftWrap: priced.giftWrap,
+          giftWrapFee: fromCents(priced.giftWrapFeeCents),
           paymentStatus: PaymentStatus.UNPAID,
           orderStatus: OrderStatus.PENDING,
           orderAddress: {

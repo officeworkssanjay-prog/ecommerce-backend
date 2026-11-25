@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { ProductFilterInput } from "@ecommerce/shared-types";
 import { env } from "../config/env";
 import { AppError } from "../utils/errors";
+import { checkPincode } from "../services/pincode.service";
 
 export class StorefrontController {
   /**
@@ -420,6 +421,27 @@ export class StorefrontController {
       success: true,
       message: "Thank you! Your message has been received and our team will get back to you shortly.",
     });
+  }
+
+  /** Delivery check for a pincode. `configured: false` means the store does not restrict delivery areas. */
+  static async checkPincode(req: Request, res: Response) {
+    const result = await checkPincode(prisma, req.params.pincode);
+    return res.json({ success: true, data: result });
+  }
+
+  /** "Notify me" request for a sold-out product. Idempotent per product + email. */
+  static async createStockAlert(req: Request, res: Response) {
+    const { slug } = req.params;
+    const { email } = req.body as { email: string };
+    const product = await prisma.product.findFirst({ where: { slug, status: true }, select: { id: true, qty: true } });
+    if (!product) throw AppError.notFound("Product not found");
+    if (product.qty > 0) throw AppError.badRequest("This product is in stock");
+    await prisma.stockAlert.upsert({
+      where: { productId_email: { productId: product.id, email } },
+      create: { productId: product.id, email },
+      update: {},
+    });
+    return res.status(201).json({ success: true, message: "We have saved your request. We will let you know when it is back." });
   }
 
   /**

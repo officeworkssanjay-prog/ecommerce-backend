@@ -17,6 +17,8 @@ export class OrderController {
       shippingRuleId: body.shippingRuleId,
       userId: req.user?.id,
       strictCoupon: false,
+      paymentMethod: body.paymentMethod,
+      giftWrap: body.giftWrap,
     });
 
     return res.json({
@@ -36,6 +38,10 @@ export class OrderController {
         subTotal: fromCents(priced.subTotalCents),
         discount: fromCents(priced.discountCents),
         shippingCost: fromCents(priced.shippingCents),
+        prepaidDiscount: fromCents(priced.prepaidDiscountCents),
+        codFee: fromCents(priced.codFeeCents),
+        giftWrap: priced.giftWrap,
+        giftWrapFee: fromCents(priced.giftWrapFeeCents),
         finalPayable: fromCents(priced.totalCents),
         coupon: priced.coupon && {
           code: priced.coupon.code,

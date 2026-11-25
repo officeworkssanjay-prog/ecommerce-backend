@@ -13,6 +13,8 @@ import {
   CreateCouponSchema,
   CreateProductAdminSchema,
   CreateShippingRuleSchema,
+  CreatePincodeSchema,
+  UpdatePincodeSchema,
   CreateSliderSchema,
   CreateSubCategorySchema,
   CreateUserSchema,
@@ -101,6 +103,9 @@ router.delete("/flash-sale/products/:id", validate(id), C.removeFlashSaleProduct
 
 resource("/coupons", { list: C.getCoupons, create: C.createCoupon, update: C.updateCoupon, remove: C.deleteCoupon }, CreateCouponSchema, UpdateCouponSchema);
 resource("/shipping-rules", { list: C.getShippingRules, create: C.createShippingRule, update: C.updateShippingRule, remove: C.deleteShippingRule }, CreateShippingRuleSchema, UpdateShippingRuleSchema);
+
+resource("/pincodes", { list: C.getPincodes, create: C.createPincode, update: C.updatePincode, remove: C.deletePincode }, CreatePincodeSchema, UpdatePincodeSchema);
+router.get("/stock-alerts", C.getStockAlerts);
 
 router.get("/advertisements", C.getAdvertisements);
 router.put("/advertisements", validate({ body: UpdateAdvertisementSchema }), C.updateAdvertisement);

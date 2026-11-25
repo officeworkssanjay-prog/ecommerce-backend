@@ -20,6 +20,7 @@ interface PlaceInput {
   paymentMethod: "COD" | "RAZORPAY";
   couponCode?: string;
   shippingRuleId?: string;
+  giftWrap?: boolean;
 }
 
 interface Options {

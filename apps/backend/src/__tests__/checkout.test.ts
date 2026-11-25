@@ -193,6 +193,61 @@ describe("POST /api/order/checkout", () => {
   });
 });
 
+describe("fees, prepaid discount and delivery areas", () => {
+  const preview = async (extra: Record<string, unknown>) =>
+    (await request(app).post("/api/order/calculate-pricing").send({ items: [item(1)], ...extra })).body.data;
+
+  it("adds the COD fee, applies the prepaid discount and charges gift wrap from store settings", async () => {
+    const g = await prisma.generalSetting.findFirstOrThrow();
+    const base = await preview({});
+    const cod = await preview({ paymentMethod: "COD" });
+    const online = await preview({ paymentMethod: "RAZORPAY" });
+    const wrapped = await preview({ paymentMethod: "COD", giftWrap: true });
+    expect(cod.codFee).toBe(Number(g.codFee));
+    expect(cod.finalPayable).toBeCloseTo(base.finalPayable + Number(g.codFee), 2);
+    const expectedOff = Math.round((base.finalPayable - base.shippingCost) * Number(g.prepaidDiscountPercent)) / 100;
+    expect(online.prepaidDiscount).toBeCloseTo(expectedOff, 1);
+    expect(online.codFee).toBe(0);
+    expect(wrapped.giftWrapFee).toBe(Number(g.giftWrapFee));
+    expect(wrapped.finalPayable).toBeCloseTo(cod.finalPayable + Number(g.giftWrapFee), 2);
+  });
+
+  it("does not restrict delivery until pincodes are configured, then enforces them", async () => {
+    const open = await request(app).get("/api/storefront/pincode/302001");
+    expect(open.body.data.configured).toBe(false);
+    expect((await request(app).get("/api/storefront/pincode/12")).status).toBe(400);
+
+    const row = await prisma.serviceablePincode.create({ data: { pincode: "560001", city: "Bengaluru", deliveryDays: 4, codAvailable: false } });
+    try {
+      expect((await request(app).get("/api/storefront/pincode/560001")).body.data).toMatchObject({ configured: true, serviceable: true, deliveryDays: 4, codAvailable: false });
+      expect((await request(app).get("/api/storefront/pincode/302001")).body.data.serviceable).toBe(false);
+      const res = await agent.post("/api/order/checkout").send({ items: [item(1)], addressId: userAddressId, paymentMethod: "COD" });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/do not deliver/i);
+    } finally {
+      await prisma.serviceablePincode.delete({ where: { id: row.id } });
+    }
+  });
+
+  it("saves a notify-me request only for sold-out products, once per email", async () => {
+    const inStock = await request(app).post(`/api/storefront/products/${(await prisma.product.findUniqueOrThrow({ where: { id: productId } })).slug}/notify`).send({ email: "a@example.com" });
+    expect(inStock.status).toBe(400);
+    const out = await prisma.product.create({
+      data: { name: "Notify Test", slug: "notify-test-item", sku: "NOTIFY-T-1", price: 100, qty: 0, shortDescription: "x", longDescription: "x", thumbImage: "/x.png", categoryId: (await prisma.product.findUniqueOrThrow({ where: { id: productId } })).categoryId, status: true },
+    });
+    try {
+      for (let i = 0; i < 2; i++) {
+        const r = await request(app).post("/api/storefront/products/notify-test-item/notify").send({ email: "Buyer@Example.com" });
+        expect(r.status).toBe(201);
+      }
+      expect(await prisma.stockAlert.count({ where: { productId: out.id } })).toBe(1);
+      expect((await request(app).post("/api/storefront/products/notify-test-item/notify").send({ email: "nope" })).status).toBe(400);
+    } finally {
+      await prisma.product.delete({ where: { id: out.id } });
+    }
+  });
+});
+
 describe("Razorpay payment verification", () => {
   it("only marks the order PAID with a valid signature", async () => {
     const res = await agent.post("/api/order/checkout").send({ items: [item(1)], addressId: userAddressId, paymentMethod: "RAZORPAY" });

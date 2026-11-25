@@ -139,6 +139,7 @@ const coupons = crud({
   },
 });
 
+const pincodes = crud({ label: "Pincode", model: () => prisma.serviceablePincode, list: { orderBy: { pincode: "asc" } } });
 const shippingRules = crud({ label: "Shipping rule", model: () => prisma.shippingRule, list: { orderBy: { createdAt: "desc" } } });
 
 const blogCategories = crud({
@@ -314,6 +315,20 @@ export class AdminController {
   static createCoupon = coupons.create;
   static updateCoupon = coupons.update;
   static deleteCoupon = coupons.remove;
+
+  static getPincodes = pincodes.list;
+  static createPincode = pincodes.create;
+  static updatePincode = pincodes.update;
+  static deletePincode = pincodes.remove;
+
+  static getStockAlerts = asyncHandler(async (_req, res) => {
+    const rows = await prisma.stockAlert.findMany({
+      take: MAX_ROWS,
+      orderBy: { createdAt: "desc" },
+      include: { product: { select: { name: true, slug: true, qty: true } } },
+    });
+    return res.json({ success: true, data: rows });
+  });
 
   static getShippingRules = shippingRules.list;
   static createShippingRule = shippingRules.create;
