@@ -6,7 +6,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ecommerce/database": "*",
@@ -16,11 +18,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.7.5",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.4.0",
-    "pusher": "^5.2.0",
     "razorpay": "^2.9.4",
-    "stripe": "^15.12.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -31,7 +33,10 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/multer": "^2.3.0",
     "@types/node": "^20.14.2",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.3.2",
     "tsx": "^4.15.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^5.1.1"
   }
 }

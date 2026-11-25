@@ -1,51 +1,21 @@
 import { Router } from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
-import { UploadController } from "../controllers/upload.controller";
+import { MAX_IMAGE_BYTES, UploadController } from "../controllers/upload.controller";
 import { authenticate } from "../middlewares/auth.middleware";
+import { createLimiter } from "../middlewares/rate-limit";
+import { asyncHandler } from "../utils/errors";
 
-const uploadsDir = path.join(__dirname, "../../uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
-    const base = path
-      .basename(file.originalname, ext)
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "-")
-      .substring(0, 30);
-    const unique = `${Date.now()}-${base}${ext}`;
-    cb(null, unique);
-  },
-});
-
+// Files are buffered in memory so the content can be verified before anything is written to disk.
 const upload = multer({
-  storage,
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed"));
-    }
-  },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_IMAGE_BYTES, files: 1 },
 });
+
+const uploadLimiter = createLimiter(60, 60, "Too many uploads. Please try again later.");
 
 const router = Router();
 
-// Endpoint for uploading an image (authenticated for security)
-router.post(
-  "/",
-  authenticate,
-  upload.single("image"),
-  UploadController.uploadImage
-);
+// Authenticated users only; type/size are verified in the controller.
+router.post("/", authenticate, uploadLimiter, upload.single("image"), asyncHandler(UploadController.uploadImage));
 
 export default router;

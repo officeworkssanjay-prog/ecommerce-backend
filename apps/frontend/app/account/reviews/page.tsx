@@ -1,132 +1,65 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, withFallback } from "@/lib/api";
-import { Star, Clock, CheckCircle2, Package, ArrowLeft } from "lucide-react";
-
-interface UserReview {
-  id: string;
-  rating: number;
-  review: string;
-  status: boolean;
-  createdAt: string;
-  product: { id: string; name: string; slug: string; thumbImage: string };
-}
-
-const mockReviews: UserReview[] = [
-  {
-    id: "rev-1",
-    rating: 5,
-    review: "The clay texture and craftsmanship on this vase exceeded my expectations! Highly recommended.",
-    status: true,
-    createdAt: new Date().toISOString(),
-    product: {
-      id: "prod-1",
-      name: "Handcrafted Terracotta Ceramic Planter",
-      slug: "handcrafted-terracotta-planter",
-      thumbImage: "https://images.unsplash.com/photo-1514517521153-1be72277b32f?auto=format&fit=crop&w=600&q=80",
-    },
-  },
-];
+import { Star } from "lucide-react";
+import { api } from "@/lib/api";
+import { useApi } from "@/lib/useApi";
+import type { Review } from "@/lib/types";
+import { formatDate } from "@/lib/format";
+import { Badge } from "@/components/ui/Badge";
+import { buttonClasses } from "@/components/ui/Button";
+import { EmptyState, ErrorState, PageLoader } from "@/components/ui/States";
+import { AccountHeader, AccountPage } from "@/components/account/AccountHeader";
 
 export default function UserReviewsPage() {
-  const [reviews, setReviews] = useState<UserReview[]>(mockReviews);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchReviews() {
-      const res = await withFallback<UserReview[]>(
-        api.get("/user/reviews"),
-        mockReviews
-      );
-      setReviews(res.data || mockReviews);
-      setLoading(false);
-    }
-    fetchReviews();
-  }, []);
+  const reviews = useApi(async () => (await api.get<Review[]>("/user/reviews")).data, []);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto py-8 px-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center space-x-2 text-xs text-zinc-400 mb-1">
-            <Link href="/account" className="hover:text-zinc-700 dark:hover:text-zinc-200">
-              Account
+    <AccountPage>
+      <AccountHeader title="My reviews" description="Reviews appear on the product page once our team approves them." />
+
+      {reviews.loading && !reviews.data ? (
+        <PageLoader label="Loading your reviews…" />
+      ) : reviews.error || !reviews.data ? (
+        <ErrorState message={reviews.message} onRetry={reviews.reload} />
+      ) : reviews.data.length === 0 ? (
+        <EmptyState
+          icon={<Star className="h-10 w-10" aria-hidden />}
+          title="No reviews yet"
+          description="After an order is delivered you can review the products you bought."
+          action={
+            <Link href="/account/orders" className={buttonClasses("outline", "md")}>
+              View my orders
             </Link>
-            <span>/</span>
-            <span>Product Reviews</span>
-          </div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            My Product Reviews
-          </h1>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Feedback and ratings you shared on artisan products.
-          </p>
-        </div>
-      </div>
-
-      {/* Reviews list */}
-      <div className="space-y-4">
-        {reviews.map((rev) => (
-          <div
-            key={rev.id}
-            className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm space-y-4"
-          >
-            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
-              <Link
-                href={`/products/${rev.product.slug}`}
-                className="flex items-center space-x-3 group"
-              >
-                <img
-                  src={rev.product.thumbImage}
-                  alt={rev.product.name}
-                  className="w-12 h-12 rounded-xl object-cover border border-zinc-200 dark:border-zinc-800"
-                />
-                <div>
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-amber-600 transition">
-                    {rev.product.name}
-                  </h3>
-                  <span className="text-[11px] text-zinc-400">
-                    Reviewed on {new Date(rev.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </Link>
-
-              {rev.status ? (
-                <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span>Approved & Live</span>
+          }
+        />
+      ) : (
+        <ul className="space-y-4">
+          {reviews.data.map((r) => (
+            <li key={r.id} className="space-y-2 rounded-2xl border border-sand bg-white p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {r.product ? (
+                  <Link href={`/products/${r.product.slug}`} className="font-serif text-lg text-ink hover:text-gold-dark">
+                    {r.product.name}
+                  </Link>
+                ) : (
+                  <span className="font-serif text-lg text-ink">Product</span>
+                )}
+                <Badge tone={r.status ? "success" : "gold"}>{r.status ? "Published" : "Pending moderation"}</Badge>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-ink/60">
+                <span role="img" aria-label={`${r.rating} out of 5 stars`} className="flex">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star key={n} className={`h-4 w-4 ${n <= r.rating ? "fill-gold text-gold" : "text-sand"}`} aria-hidden />
+                  ))}
                 </span>
-              ) : (
-                <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
-                  <Clock className="w-3 h-3" />
-                  <span>Under Review</span>
-                </span>
-              )}
-            </div>
-
-            {/* Stars */}
-            <div className="flex items-center space-x-1">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star
-                  key={s}
-                  className={`w-4 h-4 ${
-                    s <= rev.rating
-                      ? "text-amber-400 fill-amber-400"
-                      : "text-zinc-200 dark:text-zinc-700"
-                  }`}
-                />
-              ))}
-            </div>
-
-            <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
-              "{rev.review}"
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
+                {formatDate(r.createdAt)}
+              </div>
+              <p className="text-sm text-ink/80">{r.review}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </AccountPage>
   );
 }

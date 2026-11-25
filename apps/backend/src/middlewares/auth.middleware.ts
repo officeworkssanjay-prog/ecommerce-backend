@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { AuthUserSession, RoleType } from "@ecommerce/shared-types";
 import { prisma } from "@ecommerce/database";
+import { env } from "../config/env";
 
 declare global {
   namespace Express {
@@ -11,7 +12,7 @@ declare global {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-jwt-key-change-in-prod";
+const JWT_SECRET = env.JWT_SECRET;
 
 export async function authenticate(
   req: Request,

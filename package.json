@@ -2,7 +2,7 @@
   "name": "ecommerce-platform-monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "Multi-Vendor E-Commerce Platform built with Next.js, Node.js, PostgreSQL, Tailwind CSS, and shadcn/ui",
+  "description": "Sawariya Jewels: e-commerce platform (Next.js storefront and admin, Express API, PostgreSQL)",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -16,7 +16,10 @@
     "db:push": "turbo run db:push",
     "db:migrate": "turbo run db:migrate",
     "db:seed": "turbo run db:seed",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:migrate:deploy": "turbo run db:migrate:deploy"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

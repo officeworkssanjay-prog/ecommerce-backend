@@ -1,165 +1,106 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
+import { Package } from "lucide-react";
 import Link from "next/link";
-import { api } from "@/lib/api";
-import {
-  Package,
-  Truck,
-  ArrowLeft,
-  Calendar,
-  CreditCard,
-  ChevronRight,
-  ExternalLink,
-} from "lucide-react";
+import { api, errorMessage } from "@/lib/api";
+import { useApi } from "@/lib/useApi";
+import type { Order } from "@/lib/types";
+import { formatDate, formatMoney, humanize } from "@/lib/format";
+import { Badge, orderStatusTone } from "@/components/ui/Badge";
+import { Button, buttonClasses } from "@/components/ui/Button";
+import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
+import { Modal } from "@/components/ui/Modal";
+import { useFeedback } from "@/components/ui/Feedback";
+import { AccountHeader, AccountPage } from "@/components/account/AccountHeader";
+import { OrderDetail } from "@/components/account/OrderDetail";
+
+const canCancel = (o: Order) => o.orderStatus === "PENDING" && o.paymentStatus === "UNPAID";
 
 export default function UserOrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { confirm, toast } = useFeedback();
+  const orders = useApi(async () => (await api.get<Order[]>("/order/user/orders")).data, []);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
-  const defaultMockOrders = [
-    {
-      id: "ord-1",
-      invoiceId: 104829,
-      amount: 2190,
-      orderStatus: "SHIPPED",
-      paymentStatus: "PAID",
-      createdAt: "2026-03-10T14:30:00Z",
-      orderProducts: [
-        {
-          id: "op-1",
-          productName: "18K Gold Royal Kundan Choker with Zambian Emeralds",
-          qty: 1,
-          unitPrice: 2190,
-        },
-      ],
-    },
-  ];
+  const selected = orders.data?.find((o) => o.id === openId) ?? null;
 
-  useEffect(() => {
-    async function loadOrders() {
-      try {
-        const res = await api.get("/order/user/orders");
-        if (res.success && res.data && res.data.length > 0) {
-          setOrders(res.data);
-        } else {
-          setOrders(defaultMockOrders);
-        }
-      } catch {
-        setOrders(defaultMockOrders);
-      } finally {
-        setLoading(false);
-      }
+  const cancel = async (order: Order) => {
+    const ok = await confirm({
+      title: `Cancel order #${order.invoiceId}?`,
+      message: "This cannot be undone. Items return to stock.",
+      confirmLabel: "Cancel order",
+      danger: true,
+    });
+    if (!ok) return;
+    setCancelling(order.id);
+    try {
+      await api.post(`/order/${order.id}/cancel`);
+      toast.success(`Order #${order.invoiceId} cancelled`);
+      orders.reload();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setCancelling(null);
     }
-    loadOrders();
-  }, []);
+  };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      <Link
-        href="/account"
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back to Account
-      </Link>
+    <AccountPage>
+      <AccountHeader title="My orders" description="Your order history and delivery progress." />
 
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
-          Your Jewellery Acquisitions & Invoices
-        </h1>
-        <p className="text-xs text-zinc-500 mt-1">
-          Review historical purchases, certificates of authenticity, and transit milestones.
-        </p>
-      </div>
-
-      {orders.length === 0 ? (
-        <div className="p-16 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center mx-auto">
-            <Package className="w-8 h-8" />
-          </div>
-          <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-            No Orders Recorded
-          </h3>
-          <p className="text-xs text-zinc-500 max-w-sm mx-auto">
-            You have not placed any orders yet. Visit our royal jewellery vault to acquire your
-            first piece.
-          </p>
-          <Link
-            href="/products"
-            className="inline-block px-5 py-2.5 rounded-xl bg-amber-600 text-white text-xs font-bold"
-          >
-            Explore Vault
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {orders.map((ord) => (
-            <div
-              key={ord.id}
-              className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 space-y-4 hover:shadow-md transition-shadow"
-            >
-              {/* Order Top Line */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-zinc-100 dark:border-zinc-800">
-                <div className="space-y-1">
-                  <span className="text-[11px] text-zinc-400">Invoice Number</span>
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                    INV-{ord.invoiceId}
-                  </h3>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                      ord.paymentStatus === "PAID"
-                        ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600"
-                        : "bg-amber-50 dark:bg-amber-950/40 text-amber-600"
-                    }`}
-                  >
-                    {ord.paymentStatus}
-                  </span>
-
-                  <span className="px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
-                    {ord.orderStatus.replace(/_/g, " ")}
-                  </span>
-                </div>
-              </div>
-
-              {/* Items in order */}
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {ord.orderProducts?.map((item: any, idx: number) => (
-                  <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                        {item.productName}
-                      </span>
-                      <span className="text-zinc-400">×{item.qty}</span>
-                    </div>
-                    <span className="font-bold text-zinc-900 dark:text-zinc-100">
-                      ${(item.unitPrice * item.qty).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Footer */}
-              <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs">
-                <span className="text-zinc-400 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" />
-                  Placed on {new Date(ord.createdAt).toLocaleDateString()}
-                </span>
-
-                <Link
-                  href={`/order-track?invoiceId=${ord.invoiceId}`}
-                  className="inline-flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 hover:underline"
-                >
-                  Track Transit Milestones <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
+      {orders.loading && !orders.data ? (
+        <div role="status" aria-live="polite" className="space-y-4">
+          <span className="sr-only">Loading your orders…</span>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
+      ) : orders.error || !orders.data ? (
+        <ErrorState message={orders.message} onRetry={orders.reload} />
+      ) : orders.data.length === 0 ? (
+        <EmptyState
+          icon={<Package className="h-10 w-10" aria-hidden />}
+          title="No orders yet"
+          description="Your first sparkle is waiting."
+          action={
+            <Link href="/products" className={buttonClasses("primary", "md")}>
+              Shop now
+            </Link>
+          }
+        />
+      ) : (
+        <ul className="space-y-4">
+          {orders.data.map((o) => (
+            <li key={o.id} className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-sand bg-white p-5">
+              <div className="space-y-1">
+                <p className="font-serif text-lg text-ink">Order #{o.invoiceId}</p>
+                <p className="text-xs text-ink/60">
+                  {formatDate(o.createdAt)} · {o.productQty} {o.productQty === 1 ? "item" : "items"} · {formatMoney(o.amount)}
+                </p>
+                <div className="flex gap-2 pt-1">
+                  <Badge tone={orderStatusTone(o.orderStatus)}>{humanize(o.orderStatus)}</Badge>
+                  <Badge tone={o.paymentStatus === "PAID" ? "success" : "neutral"}>{humanize(o.paymentStatus)}</Badge>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setOpenId(o.id)} aria-label={`View details of order ${o.invoiceId}`}>
+                  View details
+                </Button>
+                {canCancel(o) && (
+                  <Button variant="danger" size="sm" loading={cancelling === o.id} onClick={() => cancel(o)} aria-label={`Cancel order ${o.invoiceId}`}>
+                    Cancel order
+                  </Button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
-    </div>
+
+      <Modal open={!!selected} onClose={() => setOpenId(null)} title={selected ? `Order #${selected.invoiceId}` : "Order"} size="lg">
+        {selected && <OrderDetail order={selected} />}
+      </Modal>
+    </AccountPage>
   );
 }

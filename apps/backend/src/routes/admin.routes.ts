@@ -1,106 +1,132 @@
-import { Router } from "express";
-import { AdminController } from "../controllers/admin.controller";
+import { RequestHandler, Router } from "express";
+import { ZodTypeAny } from "zod";
+import {
+  AddFlashSaleProductSchema,
+  AdminOrdersQuerySchema,
+  AdminUsersQuerySchema,
+  BroadcastMailSchema,
+  CreateBlogCategorySchema,
+  CreateBlogSchema,
+  CreateBrandSchema,
+  CreateCategorySchema,
+  CreateChildCategorySchema,
+  CreateCouponSchema,
+  CreateProductAdminSchema,
+  CreateShippingRuleSchema,
+  CreateSliderSchema,
+  CreateSubCategorySchema,
+  CreateUserSchema,
+  IdParamSchema,
+  ReviewStatusSchema,
+  UpdateAdvertisementSchema,
+  UpdateBlogCategorySchema,
+  UpdateBlogSchema,
+  UpdateBrandSchema,
+  UpdateContactMessageSchema,
+  UpdateCategorySchema,
+  UpdateChildCategorySchema,
+  UpdateCouponSchema,
+  UpdateEmailSettingSchema,
+  UpdateFlashSaleSchema,
+  UpdateGeneralSettingSchema,
+  UpdateOrderStatusSchema,
+  UpdatePaymentGatewaySchema,
+  UpdateProductAdminSchema,
+  UpdatePusherSettingSchema,
+  UpdateShippingRuleSchema,
+  UpdateSliderSchema,
+  UpdateSubCategorySchema,
+  UpdateUserStatusSchema,
+} from "@ecommerce/shared-types";
+import { AdminController as C } from "../controllers/admin.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { requireRole } from "../middlewares/role.middleware";
+import { validate } from "../middlewares/validate";
 
 const router = Router();
 
 // Protect all routes: Must be authenticated and have ADMIN role
 router.use(authenticate, requireRole("ADMIN"));
 
+const id = { params: IdParamSchema };
+
+/** list / create / update / delete for one resource, each write validated. */
+function resource(
+  path: string,
+  h: { list: RequestHandler; create: RequestHandler; update: RequestHandler; remove: RequestHandler },
+  create: ZodTypeAny,
+  update: ZodTypeAny
+) {
+  router.get(path, h.list);
+  router.post(path, validate({ body: create }), h.create);
+  router.put(`${path}/:id`, validate({ ...id, body: update }), h.update);
+  router.delete(`${path}/:id`, validate(id), h.remove);
+}
+
 // 1. Dashboard & Analytics
-router.get("/dashboard", AdminController.getDashboard);
+router.get("/dashboard", C.getDashboard);
 
 // 2. User & Customer Management
-router.get("/users", AdminController.getUsers);
-router.post("/users", AdminController.createUser);
-router.put("/users/:id/status", AdminController.updateUserStatus);
+router.get("/users", validate({ query: AdminUsersQuerySchema }), C.getUsers);
+router.post("/users", validate({ body: CreateUserSchema }), C.createUser);
+router.put("/users/:id/status", validate({ ...id, body: UpdateUserStatusSchema }), C.updateUserStatus);
 
-// 3. Hero Sliders CRUD
-router.get("/sliders", AdminController.getSliders);
-router.post("/sliders", AdminController.createSlider);
-router.put("/sliders/:id", AdminController.updateSlider);
-router.delete("/sliders/:id", AdminController.deleteSlider);
+// 3. Hero Sliders
+resource("/sliders", { list: C.getSliders, create: C.createSlider, update: C.updateSlider, remove: C.deleteSlider }, CreateSliderSchema, UpdateSliderSchema);
 
-// 4. Category Hierarchy CRUD
-router.get("/categories", AdminController.getCategories);
-router.post("/categories", AdminController.createCategory);
-router.put("/categories/:id", AdminController.updateCategory);
-router.delete("/categories/:id", AdminController.deleteCategory);
+// 4. Category hierarchy
+resource("/categories", { list: C.getCategories, create: C.createCategory, update: C.updateCategory, remove: C.deleteCategory }, CreateCategorySchema, UpdateCategorySchema);
+resource("/sub-categories", { list: C.getSubCategories, create: C.createSubCategory, update: C.updateSubCategory, remove: C.deleteSubCategory }, CreateSubCategorySchema, UpdateSubCategorySchema);
+resource("/child-categories", { list: C.getChildCategories, create: C.createChildCategory, update: C.updateChildCategory, remove: C.deleteChildCategory }, CreateChildCategorySchema, UpdateChildCategorySchema);
 
-router.get("/sub-categories", AdminController.getSubCategories);
-router.post("/sub-categories", AdminController.createSubCategory);
-router.put("/sub-categories/:id", AdminController.updateSubCategory);
-router.delete("/sub-categories/:id", AdminController.deleteSubCategory);
+// 5. Brands
+resource("/brands", { list: C.getBrands, create: C.createBrand, update: C.updateBrand, remove: C.deleteBrand }, CreateBrandSchema, UpdateBrandSchema);
 
-router.get("/child-categories", AdminController.getChildCategories);
-router.post("/child-categories", AdminController.createChildCategory);
-router.put("/child-categories/:id", AdminController.updateChildCategory);
-router.delete("/child-categories/:id", AdminController.deleteChildCategory);
+// 6. Products
+resource("/products", { list: C.getProducts, create: C.createProduct, update: C.updateProduct, remove: C.deleteProduct }, CreateProductAdminSchema, UpdateProductAdminSchema);
 
-// 5. Brands CRUD
-router.get("/brands", AdminController.getBrands);
-router.post("/brands", AdminController.createBrand);
-router.put("/brands/:id", AdminController.updateBrand);
-router.delete("/brands/:id", AdminController.deleteBrand);
+// 7. Product reviews moderation
+router.get("/reviews", C.getReviews);
+router.put("/reviews/:id/status", validate({ ...id, body: ReviewStatusSchema }), C.updateReviewStatus);
 
-// 6. Platform Products
-router.get("/products", AdminController.getProducts);
-router.post("/products", AdminController.createProduct);
-router.put("/products/:id", AdminController.updateProduct);
-router.delete("/products/:id", AdminController.deleteProduct);
+// 8. Orders & logistics pipeline
+router.get("/orders", validate({ query: AdminOrdersQuerySchema }), C.getOrders);
+router.put("/orders/:id/status", validate({ ...id, body: UpdateOrderStatusSchema }), C.updateOrderStatus);
 
-// 7. Product Reviews Moderation
-router.get("/reviews", AdminController.getReviews);
-router.put("/reviews/:id/status", AdminController.updateReviewStatus);
+// 9. Promotions, flash sale, coupons, shipping
+router.get("/flash-sale", C.getFlashSale);
+router.put("/flash-sale", validate({ body: UpdateFlashSaleSchema }), C.updateFlashSale);
+router.post("/flash-sale/products", validate({ body: AddFlashSaleProductSchema }), C.addFlashSaleProduct);
+router.delete("/flash-sale/products/:id", validate(id), C.removeFlashSaleProduct);
 
-// 8. Orders & Logistics Pipeline
-router.get("/orders", AdminController.getOrders);
-router.put("/orders/:id/status", AdminController.updateOrderStatus);
+resource("/coupons", { list: C.getCoupons, create: C.createCoupon, update: C.updateCoupon, remove: C.deleteCoupon }, CreateCouponSchema, UpdateCouponSchema);
+resource("/shipping-rules", { list: C.getShippingRules, create: C.createShippingRule, update: C.updateShippingRule, remove: C.deleteShippingRule }, CreateShippingRuleSchema, UpdateShippingRuleSchema);
 
-// 9. Promotions, Flash Sales, Coupons & Shipping Rules
-router.get("/flash-sale", AdminController.getFlashSale);
-router.put("/flash-sale", AdminController.updateFlashSale);
-router.post("/flash-sale/products", AdminController.addFlashSaleProduct);
-router.delete("/flash-sale/products/:id", AdminController.removeFlashSaleProduct);
+router.get("/advertisements", C.getAdvertisements);
+router.put("/advertisements", validate({ body: UpdateAdvertisementSchema }), C.updateAdvertisement);
 
-router.get("/coupons", AdminController.getCoupons);
-router.post("/coupons", AdminController.createCoupon);
-router.put("/coupons/:id", AdminController.updateCoupon);
-router.delete("/coupons/:id", AdminController.deleteCoupon);
+// 10. Blog & CMS
+resource("/blog-categories", { list: C.getBlogCategories, create: C.createBlogCategory, update: C.updateBlogCategory, remove: C.deleteBlogCategory }, CreateBlogCategorySchema, UpdateBlogCategorySchema);
+resource("/blogs", { list: C.getBlogs, create: C.createBlog, update: C.updateBlog, remove: C.deleteBlog }, CreateBlogSchema, UpdateBlogSchema);
 
-router.get("/shipping-rules", AdminController.getShippingRules);
-router.post("/shipping-rules", AdminController.createShippingRule);
-router.put("/shipping-rules/:id", AdminController.updateShippingRule);
-router.delete("/shipping-rules/:id", AdminController.deleteShippingRule);
+router.get("/blog-comments", C.getBlogComments);
+router.put("/blog-comments/:id/status", validate({ ...id, body: ReviewStatusSchema }), C.updateBlogCommentStatus);
+router.delete("/blog-comments/:id", validate(id), C.deleteBlogComment);
 
-router.get("/advertisements", AdminController.getAdvertisements);
-router.put("/advertisements", AdminController.updateAdvertisement);
+// 10b. Contact-form inbox
+router.get("/messages", C.getContactMessages);
+router.put("/messages/:id", validate({ ...id, body: UpdateContactMessageSchema }), C.updateContactMessage);
+router.delete("/messages/:id", validate(id), C.deleteContactMessage);
 
-// 10. Blog & CMS Content
-router.get("/blog-categories", AdminController.getBlogCategories);
-router.post("/blog-categories", AdminController.createBlogCategory);
-router.put("/blog-categories/:id", AdminController.updateBlogCategory);
-router.delete("/blog-categories/:id", AdminController.deleteBlogCategory);
+// 11. Newsletter subscribers
+router.get("/subscribers", C.getSubscribers);
+router.post("/subscribers/send-mail", validate({ body: BroadcastMailSchema }), C.sendSubscribersMail);
 
-router.get("/blogs", AdminController.getBlogs);
-router.post("/blogs", AdminController.createBlog);
-router.put("/blogs/:id", AdminController.updateBlog);
-router.delete("/blogs/:id", AdminController.deleteBlog);
-
-router.get("/blog-comments", AdminController.getBlogComments);
-router.put("/blog-comments/:id/status", AdminController.updateBlogCommentStatus);
-router.delete("/blog-comments/:id", AdminController.deleteBlogComment);
-
-// 11. Newsletter Subscribers
-router.get("/subscribers", AdminController.getSubscribers);
-router.post("/subscribers/send-mail", AdminController.sendSubscribersMail);
-
-// 12. Global Platform Settings
-router.get("/settings", AdminController.getSettings);
-router.put("/settings/general", AdminController.updateGeneralSetting);
-router.put("/settings/email", AdminController.updateEmailSetting);
-router.put("/settings/pusher", AdminController.updatePusherSetting);
-router.put("/settings/payment-gateways", AdminController.updatePaymentGatewaySettings);
+// 12. Global platform settings
+router.get("/settings", C.getSettings);
+router.put("/settings/general", validate({ body: UpdateGeneralSettingSchema }), C.updateGeneralSetting);
+router.put("/settings/email", validate({ body: UpdateEmailSettingSchema }), C.updateEmailSetting);
+router.put("/settings/pusher", validate({ body: UpdatePusherSettingSchema }), C.updatePusherSetting);
+router.put("/settings/payment-gateways", validate({ body: UpdatePaymentGatewaySchema }), C.updatePaymentGatewaySettings);
 
 export default router;

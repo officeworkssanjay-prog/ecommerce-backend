@@ -1,20 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, withFallback } from "@/lib/api";
-import {
-  Users,
-  Package,
-  ShoppingBag,
-  Clock,
-  DollarSign,
-  ArrowUpRight,
-  ShieldAlert,
-  AlertCircle,
-} from "lucide-react";
+import { BadgeCheck, Clock, Wallet, Package, ShoppingBag, Users } from "lucide-react";
+import type { ComponentType } from "react";
+import { api } from "@/lib/api";
+import { formatDateTime, formatMoney, humanize } from "@/lib/format";
+import type { Order } from "@/lib/types";
+import { useApi } from "@/lib/useApi";
+import { Badge, orderStatusTone } from "@/components/ui/Badge";
+import { buttonClasses } from "@/components/ui/Button";
+import { ErrorState, PageLoader } from "@/components/ui/States";
+import { DataTable, PageHeader } from "@/components/admin/AdminKit";
+import type { Column } from "@/components/admin/AdminKit";
 
-interface AdminDashboardData {
+interface DashboardStats {
   totalUsers: number;
   totalProducts: number;
   totalOrders: number;
@@ -22,138 +21,84 @@ interface AdminDashboardData {
   totalRevenue: number;
 }
 
-const defaultAdminStats: AdminDashboardData = {
-  totalUsers: 142,
-  totalProducts: 86,
-  totalOrders: 312,
-  pendingOrders: 7,
-  totalRevenue: 28450.0,
-};
+const QUICK_LINKS = [
+  { href: "/admin/orders", label: "Manage orders" },
+  { href: "/admin/products", label: "Add or edit products" },
+  { href: "/admin/reviews", label: "Moderate reviews" },
+  { href: "/admin/users", label: "Customers" },
+];
+
+function StatCard({ label, value, icon: Icon, hint }: { label: string; value: string; icon: ComponentType<{ className?: string }>; hint?: string }) {
+  return (
+    <div className="rounded-lg border border-sand bg-white p-5">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wider text-ink/60">{label}</p>
+        <Icon className="h-5 w-5 text-gold-dark" aria-hidden />
+      </div>
+      <p className="mt-2 font-serif text-3xl text-ink">{value}</p>
+      {hint && <p className="mt-1 text-xs text-ink/55">{hint}</p>}
+    </div>
+  );
+}
 
 export default function AdminDashboardPage() {
-  const [data, setData] = useState<AdminDashboardData>(defaultAdminStats);
-  const [loading, setLoading] = useState(true);
-  const [isFallback, setIsFallback] = useState(false);
+  const stats = useApi(async () => (await api.get<DashboardStats>("/admin/dashboard")).data);
+  const recent = useApi(async () => (await api.get<Order[]>("/admin/orders")).data.slice(0, 5));
 
-  useEffect(() => {
-    async function loadStats() {
-      const res = await withFallback<AdminDashboardData>(
-        api.get("/admin/dashboard"),
-        defaultAdminStats
-      );
-      setData(res.data);
-      setIsFallback(res.isFallback);
-      setLoading(false);
-    }
-    loadStats();
-  }, []);
+  const columns: Column<Order>[] = [
+    { key: "invoice", header: "Order", render: (o) => <span className="font-medium">#{o.invoiceId}</span> },
+    { key: "customer", header: "Customer", render: (o) => o.user?.name ?? "-" },
+    { key: "date", header: "Placed", render: (o) => formatDateTime(o.createdAt) },
+    { key: "amount", header: "Total", render: (o) => formatMoney(o.amount) },
+    { key: "status", header: "Status", render: (o) => <Badge tone={orderStatusTone(o.orderStatus)}>{humanize(o.orderStatus)}</Badge> },
+  ];
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            Platform Executive Overview
-          </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            Global marketplace activity, transaction volume, and operational moderation queues.
-          </p>
-        </div>
-      </div>
+    <div>
+      <PageHeader title="Dashboard" description="How the store is doing right now." />
 
-      {isFallback && (
-        <div className="flex items-center space-x-3 p-3.5 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200 text-xs">
-          <AlertCircle className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400" />
-          <span>
-            Database connection pending. Displaying platform preview analytics.
-          </span>
+      {stats.loading && !stats.data ? (
+        <PageLoader label="Loading dashboard…" className="py-12" />
+      ) : stats.message && !stats.data ? (
+        <ErrorState message={stats.message} onRetry={stats.reload} />
+      ) : stats.data ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <StatCard label="Revenue" value={formatMoney(stats.data.totalRevenue)} icon={Wallet} hint="Paid orders only" />
+          <StatCard label="Orders" value={String(stats.data.totalOrders)} icon={ShoppingBag} />
+          <StatCard label="Pending orders" value={String(stats.data.pendingOrders)} icon={Clock} hint="Waiting to be processed" />
+          <StatCard label="Active products" value={String(stats.data.totalProducts)} icon={Package} />
+          <StatCard label="Customers" value={String(stats.data.totalUsers)} icon={Users} />
         </div>
-      )}
+      ) : null}
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm space-y-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-            <DollarSign className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Gross Platform Sales
-            </p>
-            <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mt-1">
-              ${data.totalRevenue.toLocaleString()}
-            </h3>
-          </div>
-          <span className="text-[11px] text-zinc-400 pt-2 block border-t border-zinc-100 dark:border-zinc-800">
-            Across all verified gateways
-          </span>
-        </div>
-
-        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm space-y-3">
-          <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-            <ShoppingBag className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Total Orders
-            </p>
-            <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mt-1">
-              {data.totalOrders}
-            </h3>
-          </div>
-          <Link
-            href="/admin/orders"
-            className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline pt-2 border-t border-zinc-100 dark:border-zinc-800 w-full justify-between"
-          >
-            <span>Logistics Pipeline</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
+      <section aria-labelledby="recent-orders" className="mt-8">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 id="recent-orders" className="font-serif text-xl text-ink">
+            Recent orders
+          </h2>
+          <Link href="/admin/orders" className="text-sm font-medium text-gold-dark hover:underline">
+            View all
           </Link>
         </div>
+        {recent.message && !recent.data ? (
+          <ErrorState message={recent.message} onRetry={recent.reload} />
+        ) : (
+          <DataTable columns={columns} rows={recent.data} loading={recent.loading && !recent.data} emptyTitle="No orders yet" emptyDescription="New orders will show up here." />
+        )}
+      </section>
 
-
-        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm space-y-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              Shopper Accounts
-            </p>
-            <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 mt-1">
-              {data.totalUsers}
-            </h3>
-          </div>
-          <span className="text-[11px] text-zinc-400 pt-2 block border-t border-zinc-100 dark:border-zinc-800">
-            Registered customer profiles
-          </span>
+      <section aria-labelledby="quick-links" className="mt-8">
+        <h2 id="quick-links" className="mb-3 font-serif text-xl text-ink">
+          Quick links
+        </h2>
+        <div className="flex flex-wrap gap-3">
+          {QUICK_LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className={buttonClasses("outline")}>
+              <BadgeCheck className="h-4 w-4" aria-hidden /> {l.label}
+            </Link>
+          ))}
         </div>
-      </div>
-
-      {/* Operations Alert Row */}
-      <div className="grid grid-cols-1 gap-6">
-        <div className="p-6 rounded-3xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-black text-lg shadow-md shadow-amber-500/20 shrink-0">
-              {data.pendingOrders}
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
-                Orders Awaiting Fulfilment
-              </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                New orders that still need to be processed and shipped.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/admin/orders"
-            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs transition shadow-sm"
-          >
-            Review &rarr;
-          </Link>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

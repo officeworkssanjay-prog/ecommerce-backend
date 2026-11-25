@@ -1,392 +1,213 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "@ecommerce/database";
+import {
+  AddressInput,
+  ChangePasswordInput,
+  CreateReviewInput,
+  UpdateAddressInput,
+  UpdateProfileInput,
+} from "@ecommerce/shared-types";
+import { AppError } from "../utils/errors";
 
+const MAX_ADDRESSES = 10;
+
+const profileSelect = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  avatar: true,
+  role: true,
+} as const;
+
+/** Handlers run behind `validate()` + `asyncHandler()`, so inputs are already parsed. */
 export class UserController {
-  /**
-   * Get authenticated user profile
-   */
   static async getProfile(req: Request, res: Response) {
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          avatar: true,
-          role: true,
-          createdAt: true,
-        },
-      });
-
-      if (!user) {
-        return res.status(404).json({ success: false, message: "User not found" });
-      }
-
-      return res.json({ success: true, data: user });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { ...profileSelect, createdAt: true },
+    });
+    if (!user) throw AppError.notFound("User not found");
+    return res.json({ success: true, data: user });
   }
 
-  /**
-   * Update profile information
-   */
   static async updateProfile(req: Request, res: Response) {
-    try {
-      const { name, phone, avatar } = req.body;
-      const updated = await prisma.user.update({
-        where: { id: req.user!.id },
-        data: {
-          ...(name && { name }),
-          ...(phone !== undefined && { phone }),
-          ...(avatar !== undefined && { avatar }),
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          avatar: true,
-          role: true,
-        },
-      });
-
-      return res.json({
-        success: true,
-        message: "Profile updated successfully",
-        data: updated,
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    const { name, phone, avatar } = req.body as UpdateProfileInput;
+    const updated = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(phone !== undefined && { phone: phone === "" ? null : phone }),
+        ...(avatar !== undefined && { avatar: avatar === "" ? null : avatar }),
+      },
+      select: profileSelect,
+    });
+    return res.json({ success: true, message: "Profile updated successfully", data: updated });
   }
 
-  /**
-   * Update account password
-   */
   static async changePassword(req: Request, res: Response) {
-    try {
-      const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword } = req.body as ChangePasswordInput;
 
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({
-          success: false,
-          message: "Current password and new password are required",
-        });
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-      });
-
-      if (!user || !user.password) {
-        return res.status(400).json({
-          success: false,
-          message: "Account does not have a local password set",
-        });
-      }
-
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch) {
-        return res.status(400).json({
-          success: false,
-          message: "Current password does not match",
-        });
-      }
-
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-      await prisma.user.update({
-        where: { id: req.user!.id },
-        data: { password: hashedPassword },
-      });
-
-      return res.json({ success: true, message: "Password updated successfully" });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user || !user.password) {
+      throw AppError.badRequest("Account does not have a local password set");
     }
+    if (!(await bcrypt.compare(currentPassword, user.password))) {
+      throw AppError.badRequest("Current password does not match", { currentPassword: ["Current password does not match"] });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: await bcrypt.hash(newPassword, 10) },
+    });
+    return res.json({ success: true, message: "Password updated successfully" });
   }
 
-  /**
-   * Address Management
-   */
+  // ---------- Addresses (every query is scoped to the signed-in user) ----------
   static async getAddresses(req: Request, res: Response) {
-    try {
-      const addresses = await prisma.userAddress.findMany({
-        where: { userId: req.user!.id },
-        orderBy: { isDefault: "desc" },
-      });
-      return res.json({ success: true, data: addresses });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    const addresses = await prisma.userAddress.findMany({
+      where: { userId: req.user!.id },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+    });
+    return res.json({ success: true, data: addresses });
   }
 
   static async createAddress(req: Request, res: Response) {
-    try {
-      const {
-        name,
-        email,
-        phone,
-        country,
-        state,
-        city,
-        zipCode,
-        address,
-        addressType,
-        isDefault,
-      } = req.body;
+    const userId = req.user!.id;
+    const { isDefault, ...fields } = req.body as AddressInput;
 
-      if (isDefault) {
-        await prisma.userAddress.updateMany({
-          where: { userId: req.user!.id },
-          data: { isDefault: false },
-        });
+    const created = await prisma.$transaction(async (tx) => {
+      const count = await tx.userAddress.count({ where: { userId } });
+      if (count >= MAX_ADDRESSES) {
+        throw AppError.badRequest(`You can save at most ${MAX_ADDRESSES} addresses`);
       }
+      // The first address is always the default.
+      const makeDefault = Boolean(isDefault) || count === 0;
+      if (makeDefault) await tx.userAddress.updateMany({ where: { userId }, data: { isDefault: false } });
+      return tx.userAddress.create({ data: { ...fields, userId, isDefault: makeDefault } });
+    });
 
-      const newAddress = await prisma.userAddress.create({
-        data: {
-          userId: req.user!.id,
-          name,
-          email,
-          phone,
-          country,
-          state,
-          city,
-          zipCode,
-          address,
-          addressType: addressType || "home",
-          isDefault: Boolean(isDefault),
-        },
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: "Address created successfully",
-        data: newAddress,
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    return res.status(201).json({ success: true, message: "Address created successfully", data: created });
   }
 
   static async updateAddress(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const {
-        name,
-        email,
-        phone,
-        country,
-        state,
-        city,
-        zipCode,
-        address,
-        addressType,
-        isDefault,
-      } = req.body;
+    const userId = req.user!.id;
+    const { id } = req.params;
+    const { isDefault, ...fields } = req.body as UpdateAddressInput;
 
-      const existing = await prisma.userAddress.findFirst({
-        where: { id, userId: req.user!.id },
-      });
-      if (!existing) {
-        return res.status(404).json({ success: false, message: "Address not found" });
-      }
-
-      if (isDefault) {
-        await prisma.userAddress.updateMany({
-          where: { userId: req.user!.id },
-          data: { isDefault: false },
-        });
-      }
-
-      const updated = await prisma.userAddress.update({
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.userAddress.findFirst({ where: { id, userId } });
+      if (!existing) throw AppError.notFound("Address not found");
+      if (isDefault) await tx.userAddress.updateMany({ where: { userId }, data: { isDefault: false } });
+      return tx.userAddress.update({
         where: { id },
-        data: {
-          name,
-          email,
-          phone,
-          country,
-          state,
-          city,
-          zipCode,
-          address,
-          addressType,
-          ...(isDefault !== undefined && { isDefault: Boolean(isDefault) }),
-        },
+        // A default address can't be demoted directly; set another one as default instead.
+        data: { ...fields, ...(isDefault ? { isDefault: true } : {}) },
       });
+    });
 
-      return res.json({
-        success: true,
-        message: "Address updated successfully",
-        data: updated,
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    return res.json({ success: true, message: "Address updated successfully", data: updated });
   }
 
   static async deleteAddress(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const existing = await prisma.userAddress.findFirst({
-        where: { id, userId: req.user!.id },
-      });
-      if (!existing) {
-        return res.status(404).json({ success: false, message: "Address not found" });
-      }
+    const userId = req.user!.id;
+    const { id } = req.params;
 
-      await prisma.userAddress.delete({ where: { id } });
-      return res.json({ success: true, message: "Address removed successfully" });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.userAddress.findFirst({ where: { id, userId } });
+      if (!existing) throw AppError.notFound("Address not found");
+      await tx.userAddress.delete({ where: { id } });
+      if (existing.isDefault) {
+        const next = await tx.userAddress.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } });
+        if (next) await tx.userAddress.update({ where: { id: next.id }, data: { isDefault: true } });
+      }
+    });
+
+    return res.json({ success: true, message: "Address removed successfully" });
   }
 
   static async setDefaultAddress(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      await prisma.$transaction([
-        prisma.userAddress.updateMany({
-          where: { userId: req.user!.id },
-          data: { isDefault: false },
-        }),
-        prisma.userAddress.update({
-          where: { id },
-          data: { isDefault: true },
-        }),
-      ]);
+    const userId = req.user!.id;
+    const { id } = req.params;
 
-      return res.json({ success: true, message: "Default address updated" });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.userAddress.findFirst({ where: { id, userId } });
+      if (!existing) throw AppError.notFound("Address not found");
+      await tx.userAddress.updateMany({ where: { userId }, data: { isDefault: false } });
+      await tx.userAddress.update({ where: { id }, data: { isDefault: true } });
+    });
+
+    return res.json({ success: true, message: "Default address updated" });
   }
 
-  /**
-   * Wishlist Management
-   */
+  // ---------- Wishlist ----------
   static async getWishlist(req: Request, res: Response) {
-    try {
-      const wishlist = await prisma.wishlist.findMany({
-        where: { userId: req.user!.id },
-        include: {
-          product: {
-            include: {
-              category: { select: { name: true, slug: true } },
-              brand: { select: { name: true, slug: true } },
-            },
+    const wishlist = await prisma.wishlist.findMany({
+      where: { userId: req.user!.id },
+      include: {
+        product: {
+          include: {
+            category: { select: { name: true, slug: true } },
+            brand: { select: { name: true, slug: true } },
+            // so "add to cart" from the wishlist can preselect default options
+            variants: { where: { status: true }, include: { items: { where: { status: true } } } },
           },
         },
-        orderBy: { createdAt: "desc" },
-      });
-
-      return res.json({ success: true, data: wishlist });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return res.json({ success: true, data: wishlist });
   }
 
   static async addToWishlist(req: Request, res: Response) {
-    try {
-      const { productId } = req.params;
+    const { productId } = req.params;
+    const product = await prisma.product.findFirst({ where: { id: productId, status: true }, select: { id: true } });
+    if (!product) throw AppError.notFound("Product not found");
 
-      const product = await prisma.product.findUnique({ where: { id: productId } });
-      if (!product) {
-        return res.status(404).json({ success: false, message: "Product not found" });
-      }
-
-      const item = await prisma.wishlist.upsert({
-        where: {
-          userId_productId: {
-            userId: req.user!.id,
-            productId,
-          },
-        },
-        update: {},
-        create: {
-          userId: req.user!.id,
-          productId,
-        },
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: "Product added to wishlist",
-        data: item,
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    const item = await prisma.wishlist.upsert({
+      where: { userId_productId: { userId: req.user!.id, productId } },
+      update: {},
+      create: { userId: req.user!.id, productId },
+    });
+    return res.status(201).json({ success: true, message: "Product added to wishlist", data: item });
   }
 
   static async removeFromWishlist(req: Request, res: Response) {
-    try {
-      const { productId } = req.params;
-      await prisma.wishlist.deleteMany({
-        where: {
-          userId: req.user!.id,
-          productId,
-        },
-      });
-
-      return res.json({ success: true, message: "Product removed from wishlist" });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    await prisma.wishlist.deleteMany({ where: { userId: req.user!.id, productId: req.params.productId } });
+    return res.json({ success: true, message: "Product removed from wishlist" });
   }
 
-  /**
-   * Product Reviews
-   */
+  // ---------- Reviews ----------
   static async getUserReviews(req: Request, res: Response) {
-    try {
-      const reviews = await prisma.productReview.findMany({
-        where: { userId: req.user!.id },
-        include: {
-          product: { select: { id: true, name: true, slug: true, thumbImage: true } },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-
-      return res.json({ success: true, data: reviews });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    const reviews = await prisma.productReview.findMany({
+      where: { userId: req.user!.id },
+      include: { product: { select: { id: true, name: true, slug: true, thumbImage: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    return res.json({ success: true, data: reviews });
   }
 
+  /** Only buyers whose order containing the product was delivered can review it, once. */
   static async createReview(req: Request, res: Response) {
-    try {
-      const { productId, rating, review } = req.body;
+    const userId = req.user!.id;
+    const { productId, rating, review } = req.body as CreateReviewInput;
 
-      if (!productId || !rating || !review) {
-        return res.status(400).json({
-          success: false,
-          message: "Product ID, rating (1-5), and review text are required",
-        });
-      }
+    const product = await prisma.product.findFirst({ where: { id: productId, status: true }, select: { id: true } });
+    if (!product) throw AppError.notFound("Product not found");
 
-      const newReview = await prisma.productReview.create({
-        data: {
-          userId: req.user!.id,
-          productId,
-          rating: Number(rating),
-          review,
-          status: false, // Pending admin moderation
-        },
-      });
+    const purchased = await prisma.orderProduct.findFirst({
+      where: { productId, order: { userId, orderStatus: "DELIVERED" } },
+      select: { id: true },
+    });
+    if (!purchased) throw AppError.forbidden("You can review a product after your order containing it has been delivered");
 
-      return res.status(201).json({
-        success: true,
-        message: "Review submitted for moderation",
-        data: newReview,
-      });
-    } catch (error: any) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    const existing = await prisma.productReview.findUnique({ where: { userId_productId: { userId, productId } } });
+    if (existing) throw AppError.conflict("You have already reviewed this product");
+
+    const created = await prisma.productReview.create({
+      data: { userId, productId, rating, review, status: false }, // pending admin moderation
+    });
+    return res.status(201).json({ success: true, message: "Review submitted for moderation", data: created });
   }
 }

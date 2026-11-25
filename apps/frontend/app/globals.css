@@ -1,27 +1,52 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/*
+ * Sawariya Jewels design tokens. Values come from the palette already used across the storefront.
+ * Use the utilities (bg-cream, text-ink, bg-gold, border-sand …) instead of hard-coded hex values.
+ * When the Figma exports are available, adjust the values here and every page follows.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-serif: var(--font-serif);
-  --font-mono: var(--font-geist-mono);
+  --color-cream: #f8f3ea;
+  --color-parchment: #f5ebd7;
+  --color-sand: #ebdcc9;
+  --color-ink: #221517;
+  --color-ink-deep: #180e10;
+  --color-ink-soft: #2e1c1f;
+  --color-gold: #caa15e;
+  --color-gold-dark: #8b6528;
+  --color-gold-light: #e8c792;
+  --color-danger: #c0392b;
+  --color-success: #2f7d4f;
+
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 2px rgb(34 21 23 / 0.06), 0 8px 24px rgb(34 21 23 / 0.06);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Keyboard focus is always visible */
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

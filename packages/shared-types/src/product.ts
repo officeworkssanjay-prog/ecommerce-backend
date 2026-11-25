@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { emptyToUndefined } from "./common";
 
 export const ProductTypeEnum = z.enum([
   "NEW_ARRIVAL",
@@ -8,18 +9,30 @@ export const ProductTypeEnum = z.enum([
 ]);
 export type ProductTypeValue = z.infer<typeof ProductTypeEnum>;
 
-export const ProductFilterSchema = z.object({
-  category: z.string().optional(),
-  subCategory: z.string().optional(),
-  childCategory: z.string().optional(),
-  brand: z.string().optional(),
-  minPrice: z.coerce.number().optional(),
-  maxPrice: z.coerce.number().optional(),
-  search: z.string().optional(),
-  page: z.coerce.number().default(1),
-  limit: z.coerce.number().default(12),
-  sort: z.enum(["newest", "price_low", "price_high", "popular"]).default("newest"),
-});
+const optionalText = (max: number) => z.preprocess(emptyToUndefined, z.string().trim().max(max).optional());
+const optionalPrice = z.preprocess(emptyToUndefined, z.coerce.number().min(0, "Price cannot be negative").max(10_000_000).optional());
+
+export const ProductFilterSchema = z
+  .object({
+    category: optionalText(100),
+    subCategory: optionalText(100),
+    childCategory: optionalText(100),
+    brand: optionalText(100),
+    minPrice: optionalPrice,
+    maxPrice: optionalPrice,
+    search: optionalText(100),
+    page: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(10000).default(1)),
+    limit: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(60).default(12)),
+    sort: z.preprocess(emptyToUndefined, z.enum(["recommended", "newest", "price_low", "price_high", "popular"]).default("recommended")),
+    /** Only products with a currently valid offer price ("Sale"). Accepts true/1. */
+    sale: z.preprocess((v) => (v === "" || v === undefined ? undefined : v === true || v === "true" || v === "1"), z.boolean().optional()),
+    /** Variant option name, e.g. a bangle size "2.4". */
+    size: optionalText(20),
+  })
+  .refine((q) => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+    message: "Minimum price cannot be greater than maximum price",
+    path: ["minPrice"],
+  });
 export type ProductFilterInput = z.infer<typeof ProductFilterSchema>;
 
 export const CreateProductSchema = z.object({
