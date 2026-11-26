@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import ChatDrawer from "./ChatDrawer";
 import { ActiveCategoryNav, CategoryNav } from "./nav/CategoryNav";
 import { MobileMenu } from "./nav/MobileMenu";
+import { buildNav } from "./nav/navLinks";
 import { SearchPanel } from "./nav/SearchPanel";
 import { UserMenu } from "./nav/UserMenu";
 import { useCategories } from "./nav/useCategories";
@@ -23,6 +24,7 @@ export function Navbar() {
   const { user, isAdmin } = useAuth();
   const { totalItems, openCart } = useCart();
   const categories = useCategories();
+  const navigation = buildNav(categories);
   const wishlistCount = useWishlistCount();
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -64,8 +66,8 @@ export function Navbar() {
               <img src="/images/figma/logo.png" alt="Sawariya Jewels, home" className="h-8 w-auto object-contain sm:h-9" />
             </Link>
 
-            <Suspense fallback={<CategoryNav activeKey={null} />}>
-              <ActiveCategoryNav />
+            <Suspense fallback={<CategoryNav items={navigation} activeKey={null} />}>
+              <ActiveCategoryNav items={navigation} />
             </Suspense>
 
             <div className="flex items-center gap-2 sm:gap-4">
@@ -121,7 +123,7 @@ export function Navbar() {
       </div>
 
       {searchOpen && <SearchPanel query={query} onQuery={setQuery} onSubmit={search} suggestions={categories.slice(0, 6).map((c) => c.name)} />}
-      {mobileOpen && <MobileMenu id="mobile-menu" query={query} onQuery={setQuery} onSubmit={search} onNavigate={() => setMobileOpen(false)} />}
+      {mobileOpen && <MobileMenu id="mobile-menu" items={navigation} query={query} onQuery={setQuery} onSubmit={search} onNavigate={() => setMobileOpen(false)} />}
 
       {canChat && <ChatDrawer isOpen={chatOpen} onClose={() => setChatOpen(false)} />}
     </header>

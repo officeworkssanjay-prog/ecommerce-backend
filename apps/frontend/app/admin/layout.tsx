@@ -20,6 +20,7 @@ import {
   Menu,
   BellRing,
   MessageSquare,
+  MessagesSquare,
   Package,
   Settings,
   ShoppingBag,
@@ -32,6 +33,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { PageLoader } from "@/components/ui/States";
+import { usePolling } from "@/lib/usePolling";
+import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 const NAV = [
@@ -41,6 +44,7 @@ const NAV = [
     items: [
       { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
       { href: "/admin/users", label: "Customers", icon: Users },
+      { href: "/admin/chat", label: "Live chat", icon: MessagesSquare },
       { href: "/admin/reviews", label: "Reviews", icon: Star },
     ],
   },
@@ -88,6 +92,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // The mobile menu is "open for" one path, so navigating anywhere closes it without an effect.
   const [openFor, setOpenFor] = useState<string | null>(null);
   const open = openFor === pathname;
+  // Unread customer messages, shown as a badge on "Live chat".
+  const chats = usePolling<Conversation[]>(isAdmin ? "/chat/conversations" : null, 15_000);
+  const unread = (chats.data ?? []).reduce((sum, c) => sum + c.unseenCount, 0);
 
   // proxy.ts already blocks non-admins; this covers a session that expires while the page is open.
   useEffect(() => {
@@ -116,6 +123,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   >
                     <Icon className="h-4 w-4 shrink-0" aria-hidden />
                     {label}
+                    {href === "/admin/chat" && unread > 0 && (
+                      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[11px] font-bold text-white">
+                        {unread}
+                        <span className="sr-only"> unread messages</span>
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

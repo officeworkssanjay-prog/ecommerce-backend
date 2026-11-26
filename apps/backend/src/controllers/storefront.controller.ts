@@ -20,6 +20,7 @@ export class StorefrontController {
           }),
           prisma.category.findMany({
             where: { status: true },
+            orderBy: { createdAt: "asc" },
             include: {
               subCategories: {
                 where: { status: true },
@@ -246,6 +247,7 @@ export class StorefrontController {
     try {
       const categories = await prisma.category.findMany({
         where: { status: true },
+        orderBy: { createdAt: "asc" },
         include: {
           subCategories: {
             where: { status: true },

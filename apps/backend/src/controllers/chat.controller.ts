@@ -82,12 +82,12 @@ export class ChatController {
           { senderId: receiverId, receiverId: currentUserId },
         ],
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
       take: 500,
       include: { sender: { select: { id: true, name: true, avatar: true } } },
     });
 
-    return res.json({ success: true, data: messages });
+    return res.json({ success: true, data: messages.reverse() });
   }
 
   static async sendMessage(req: Request, res: Response) {

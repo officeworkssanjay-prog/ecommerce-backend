@@ -2,19 +2,20 @@
 
 import Link from "next/link";
 import { ChevronDown, Search } from "lucide-react";
-import { navItems } from "./navLinks";
+import type { NavItem } from "./navLinks";
 
 interface Props {
   id: string;
+  items: NavItem[];
   query: string;
   onQuery: (q: string) => void;
   onSubmit: (q: string) => void;
   onNavigate: () => void;
 }
 
-export function MobileMenu({ id, query, onQuery, onSubmit, onNavigate }: Props) {
+export function MobileMenu({ id, items, query, onQuery, onSubmit, onNavigate }: Props) {
   return (
-    <div id={id} className="space-y-4 border-b border-ink-soft bg-ink px-4 py-5 text-white lg:hidden">
+    <div id={id} className="max-h-[calc(100vh-76px)] space-y-4 overflow-y-auto border-b border-ink-soft bg-ink px-4 py-5 text-white lg:hidden">
       <form
         role="search"
         onSubmit={(e) => {
@@ -37,7 +38,7 @@ export function MobileMenu({ id, query, onQuery, onSubmit, onNavigate }: Props) 
         </button>
       </form>
       <nav aria-label="Shop by category" className="flex flex-col divide-y divide-ink-soft">
-        {navItems.map((item) => (
+        {items.map((item) => (
           <div key={item.key}>
             <Link href={item.href} onClick={onNavigate} className={`flex items-center justify-between py-3 text-sm ${item.sale ? "font-semibold text-danger" : "font-medium text-cream"}`}>
               {item.label}

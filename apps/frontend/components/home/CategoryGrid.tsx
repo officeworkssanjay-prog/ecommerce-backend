@@ -10,7 +10,7 @@ export function CategoryGrid({ categories }: { categories: Category[] }) {
       <div className={sectionWidth}>
         <SectionHeading eyebrow="SHOP BY CATEGORY" title="Shop by Category" linkHref="/products" linkLabel="View all" />
         <ul className={cn("grid grid-cols-4 gap-4 sm:gap-6 lg:grid-cols-8")}>
-          {categories.slice(0, 8).map((cat) => (
+          {categories.map((cat) => (
             <li key={cat.id}>
               <Link href={`/products?category=${encodeURIComponent(cat.slug)}`} className="group flex flex-col items-center text-center">
                 <div className="aspect-square w-full max-w-[120px] overflow-hidden rounded-full border border-gold p-1 transition-shadow group-hover:shadow-lg">

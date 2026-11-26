@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { activeNavKey, navItems, type NavItem } from "./navLinks";
+import { activeNavKey, type NavItem } from "./navLinks";
 
 const base = "relative flex items-center gap-1 py-2 text-[14.5px] font-medium tracking-wide transition-colors";
 const tone = (item: NavItem, active: boolean) => (item.sale ? "text-danger hover:opacity-80" : active ? "text-gold-light" : "text-cream hover:text-gold-light");
@@ -36,7 +36,7 @@ function Dropdown({ item, active }: { item: NavItem; active: boolean }) {
         {active && underline}
       </button>
       {open && (
-        <ul className="absolute left-1/2 top-full z-50 w-48 -translate-x-1/2 rounded-xl border border-ink-soft bg-ink py-2 shadow-2xl">
+        <ul className="absolute left-1/2 top-full z-50 max-h-[70vh] w-52 overflow-y-auto -translate-x-1/2 rounded-xl border border-ink-soft bg-ink py-2 shadow-2xl">
           {item.children?.map((c) => (
             <li key={c.slug}>
               <Link href={c.href} onClick={() => setOpen(false)} className={dropdownLink}>
@@ -51,10 +51,10 @@ function Dropdown({ item, active }: { item: NavItem; active: boolean }) {
 }
 
 /** Desktop navigation. `activeKey` marks the current item with a gold underline. */
-export function CategoryNav({ activeKey }: { activeKey: string | null }) {
+export function CategoryNav({ items, activeKey }: { items: NavItem[]; activeKey: string | null }) {
   return (
     <nav aria-label="Shop by category" className="hidden h-full items-center gap-6 lg:flex xl:gap-9">
-      {navItems.map((item) =>
+      {items.map((item) =>
         item.children ? (
           <Dropdown key={item.key} item={item} active={activeKey === item.key} />
         ) : (
@@ -69,8 +69,8 @@ export function CategoryNav({ activeKey }: { activeKey: string | null }) {
 }
 
 /** Reads the URL, so it must sit inside <Suspense>. */
-export function ActiveCategoryNav() {
+export function ActiveCategoryNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   const params = useSearchParams();
-  return <CategoryNav activeKey={activeNavKey(pathname, params)} />;
+  return <CategoryNav items={items} activeKey={activeNavKey(items, pathname, params)} />;
 }

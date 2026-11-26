@@ -7,8 +7,7 @@ import { ApiError, api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useApi } from "@/lib/useApi";
 import type { ChatMessage, ChatPartner } from "@/lib/types";
-import { formatDateTime } from "@/lib/format";
-import { cn } from "@/lib/cn";
+import { MessageList } from "@/components/chat/MessageList";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, ErrorState, PageLoader } from "@/components/ui/States";
 import { FormError } from "@/components/ui/Field";
@@ -32,7 +31,6 @@ export default function ChatDrawer({ isOpen, onClose }: Props) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const panel = useRef<HTMLDivElement>(null);
-  const end = useRef<HTMLDivElement>(null);
   const agentId = agent.data?.id;
 
   const [tick, setTick] = useState(0);
@@ -57,10 +55,6 @@ export default function ChatDrawer({ isOpen, onClose }: Props) {
       clearInterval(timer);
     };
   }, [enabled, agentId, tick]);
-
-  useEffect(() => {
-    end.current?.scrollIntoView?.({ block: "end" });
-  }, [messages?.length]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -105,22 +99,7 @@ export default function ChatDrawer({ isOpen, onClose }: Props) {
   else if (messages.length === 0) {
     body = <EmptyState icon={<MessageSquare className="h-10 w-10" aria-hidden />} title="Start a conversation" description="Ask us about a product, an order or a custom piece." />;
   } else {
-    body = (
-      <ul className="space-y-3 p-4" aria-live="polite" aria-label="Conversation">
-        {messages.map((m) => {
-          const mine = m.senderId === user.id;
-          return (
-            <li key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
-              <div className={cn("max-w-[80%] rounded-2xl px-3.5 py-2 text-sm", mine ? "rounded-br-sm bg-gold text-ink-deep" : "rounded-bl-sm border border-sand bg-white text-ink")}>
-                <p className="whitespace-pre-wrap break-words">{m.message}</p>
-                <p className={cn("mt-1 text-[10px]", mine ? "text-ink-deep/70" : "text-ink/50")}>{formatDateTime(m.createdAt)}</p>
-              </div>
-            </li>
-          );
-        })}
-        <div ref={end} />
-      </ul>
-    );
+    body = <MessageList messages={messages} currentUserId={user.id} />;
   }
 
   return (
